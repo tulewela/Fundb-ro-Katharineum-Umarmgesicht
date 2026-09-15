@@ -1,7 +1,10 @@
 import os
+import json
+import io
+import base64
+import numpy as np
 import streamlit as st
 from PIL import Image
-import numpy as np
 from transformers import pipeline
 
 # -----------------------------------------------------------------------------
@@ -92,13 +95,45 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. HUGGING FACE MODEL LOADING & PREDICTION
+# 2. PERSISTENT STORAGE (GERÄTEÜBERGREIFENDE DATENBANK)
 # -----------------------------------------------------------------------------
+DB_FILE = "items_db.json"
+
+def load_db():
+    """Lädt die Fundstücke aus der JSON-Datei auf dem Server."""
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_db(items):
+    """Speichert die Fundstücke dauerhaft in der JSON-Datei."""
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.error(f"Fehler beim Speichern der Datenbank: {e}")
+
+def image_to_base64(pil_img: Image.Image) -> str:
+    """Konvertiert ein PIL-Bild in einen Base64-String für JSON-Speicherung."""
+    buffered = io.BytesIO()
+    if pil_img.mode != "RGB":
+        pil_img = pil_img.convert("RGB")
+    pil_img.save(buffered, format="JPEG", quality=85)
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+# -----------------------------------------------------------------------------
+# 3. HUGGING FACE KI & FARBANALYSE
+# -----------------------------------------------------------------------------
+CATEGORIES = ["T-Shirt", "Pullover", "Mütze", "Flasche", "Brotdose", "Fahrradhelm", "Sonstiges"]
+
 @st.cache_resource
 def load_hf_classifier():
-    """Lädt ein vortrainiertes Vision Transformer (ViT) Modell von Hugging Face."""
+    """Lädt das Bildklassifikations-Modell von Hugging Face."""
     try:
-        # Schnelles und präzises Bildklassifikations-Modell
         return pipeline("image-classification", model="google/vit-base-patch16-224")
     except Exception as e:
         st.error(f"Fehler beim Laden des Hugging Face Modells: {e}")
@@ -106,25 +141,75 @@ def load_hf_classifier():
 
 classifier = load_hf_classifier()
 
-def classify_image(image: Image.Image):
-    """Klassifiziert ein Bild mit Hugging Face."""
+def detect_color_name(pil_img: Image.Image) -> str:
+    """Ermittelt automatisch die Hauptfarbe des hochgeladenen Bildes."""
+    img = pil_img.copy().resize((50, 50))
+    arr = np.array(img)
+    if arr.shape[-1] == 4:
+        arr = arr[:, :, :3]
+    
+    mean_rgb = arr.mean(axis=(0, 1))
+    r, g, b = mean_rgb[0], mean_rgb[1], mean_rgb[2]
+    
+    if r < 50 and g < 50 and b < 50:
+        return "Schwarz"
+    elif r > 200 and g > 200 and b > 200:
+        return "Weiß"
+    elif abs(r - g) < 20 and abs(g - b) < 20 and abs(r - b) < 20:
+        return "Grau"
+    elif r > g + 30 and r > b + 30:
+        return "Rot"
+    elif g > r + 20 and g > b + 20:
+        return "Grün"
+    elif b > r + 20 and b > g + 20:
+        return "Blau"
+    elif r > 180 and g > 150 and b < 100:
+        return "Gelb"
+    elif r > 120 and g > 70 and b < 50:
+        return "Braun"
+    else:
+        return "Bunt"
+
+def map_label_to_category(raw_label: str) -> str:
+    """Mappt das englische Hugging Face Ergebnis auf die vorgegebenen Kategorien."""
+    lbl = raw_label.lower()
+    
+    if any(k in lbl for k in ["t-shirt", "jersey", "polo", "shirt"]):
+        return "T-Shirt"
+    elif any(k in lbl for k in ["sweater", "cardigan", "sweatshirt", "hoodie", "jacket", "coat"]):
+        return "Pullover"
+    elif any(k in lbl for k in ["hat", "cap", "beanie", "bonnet", "beret"]):
+        return "Mütze"
+    elif any(k in lbl for k in ["bottle", "flask", "canteen", "thermos", "water bottle"]):
+        return "Flasche"
+    elif any(k in lbl for k in ["box", "container", "lunchbox", "bento"]):
+        return "Brotdose"
+    elif any(k in lbl for k in ["helmet", "crash helmet"]):
+        return "Fahrradhelm"
+    else:
+        return "Sonstiges"
+
+def classify_and_generate_tags(image: Image.Image):
+    """Analysiert das Bild, wählt die Kategorie und generiert automatische Tags."""
+    category = "Sonstiges"
+    confidence = 0.0
+    
     if classifier is not None:
         if image.mode != "RGB":
             image = image.convert("RGB")
-            
         results = classifier(image)
         top_result = results[0]
-        
         raw_label = top_result['label']
         confidence = float(top_result['score'])
+        category = map_label_to_category(raw_label)
         
-        # Bereinigung des Labels (z. B. "backpack, back pack" -> "Backpack")
-        clean_label = raw_label.split(',')[0].strip().title()
-        return clean_label, confidence
-    return "Fundstück", 0.0
+    color = detect_color_name(image)
+    auto_tags = f"{category}, {color}"
+    
+    return category, color, auto_tags, confidence
 
 # -----------------------------------------------------------------------------
-# 3. SESSION STATE INITIALIZATION (LEERE DATENBANK)
+# 4. SESSION STATE INITIALIZATION
 # -----------------------------------------------------------------------------
 if "current_screen" not in st.session_state:
     st.session_state.current_screen = "Suchen"
@@ -132,12 +217,11 @@ if "current_screen" not in st.session_state:
 if "selected_item_id" not in st.session_state:
     st.session_state.selected_item_id = None
 
-# Komplett leere Datenbank wie gewünscht
-if "items_db" not in st.session_state:
-    st.session_state.items_db = []
+# Always sync session state with the JSON database file
+st.session_state.items_db = load_db()
 
 # -----------------------------------------------------------------------------
-# 4. HEADER COMPONENT
+# 5. HEADER & NAVIGATION
 # -----------------------------------------------------------------------------
 def render_header(title_override=None, show_back=False):
     col_back, col_title, col_settings = st.columns([1, 4, 1])
@@ -162,9 +246,6 @@ def render_header(title_override=None, show_back=False):
 
     st.markdown("---")
 
-# -----------------------------------------------------------------------------
-# 5. BOTTOM NAVIGATION BAR
-# -----------------------------------------------------------------------------
 def render_bottom_nav():
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     
@@ -172,7 +253,6 @@ def render_bottom_nav():
     with nav_container:
         st.markdown("---")
         c1, c2, c3 = st.columns(3)
-        
         current = st.session_state.current_screen
         
         with c1:
@@ -195,47 +275,48 @@ def render_bottom_nav():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 6. SCREEN 1: DASHBOARD & SCHNELLSUCHE (MIT OPTIMIERTEM TAG-FILTER)
+# 6. SCREEN 1: SUCHEN & FILTERN
 # -----------------------------------------------------------------------------
 def screen_suchen():
     render_header()
     
-    search_query = st.text_input("🔍 Gegenstand oder Tag suchen...", placeholder="z. B. Schlüssel, Tasche, Rot...")
+    # Reload latest DB state from disk
+    st.session_state.items_db = load_db()
+    
+    search_query = st.text_input("🔍 Suchleiste (Eingeben und Enter drücken)", placeholder="z. B. Mütze, Rot, Schulhof...")
     
     with st.expander("Filter hinzufügen ▽", expanded=False):
-        col_cat, col_col, col_brand, col_loc = st.columns(4)
+        col_cat, col_col, col_loc = st.columns(3)
         
         with col_cat:
-            filter_cat = st.selectbox("Fundstück-Kategorie", ["Alle", "Schlüssel", "Taschen", "Flaschen", "Elektronik", "Kleidung"])
+            filter_cat = st.selectbox("Kategorie Filter", ["Alle"] + CATEGORIES)
         with col_col:
-            filter_color = st.selectbox("Farbe Suchen", ["Alle", "Blau", "Rot", "Grün", "Schwarz", "Silber"])
-        with col_brand:
-            filter_brand = st.text_input("Marke Suchen", placeholder="z.B. Nike, Mepal")
+            filter_color = st.selectbox("Farbe Filter", ["Alle", "Schwarz", "Weiß", "Grau", "Rot", "Grün", "Blau", "Gelb", "Braun", "Bunt"])
         with col_loc:
-            filter_loc = st.text_input("Ort Suchen", placeholder="z.B. Pausenhof, Mensa")
+            filter_loc = st.text_input("Ort Filter", placeholder="z.B. Pausenhof, Mensa")
 
     st.markdown("### Fundstücke Galerie")
     
     filtered_items = st.session_state.items_db
     
-    # 1. Haupt-Suchfeld (Prüft Titel, Tags, Kategorie, Farbe, Ort)
-    if search_query:
+    # Text-Suche (Funktioniert direkt bei Enter)
+    if search_query.strip():
         q = search_query.lower().strip()
         filtered_items = [
             item for item in filtered_items 
-            if q in item['title'].lower() 
-            or q in item['tags'].lower() 
+            if q in item.get('title', '').lower() 
+            or q in item.get('tags', '').lower() 
             or q in item.get('category', '').lower()
             or q in item.get('color', '').lower()
             or q in item.get('location', '').lower()
         ]
         
-    # 2. Spezifische Filter (Prüfen das jeweilige Feld ODER die Tags)
+    # Dropdown- & Orts-Filter
     if 'filter_cat' in locals() and filter_cat != "Alle":
         cat_q = filter_cat.lower()
         filtered_items = [
             item for item in filtered_items 
-            if cat_q in item.get('category', '').lower() or cat_q in item.get('tags', '').lower()
+            if cat_q == item.get('category', '').lower() or cat_q in item.get('tags', '').lower()
         ]
         
     if 'filter_color' in locals() and filter_color != "Alle":
@@ -243,13 +324,6 @@ def screen_suchen():
         filtered_items = [
             item for item in filtered_items 
             if col_q in item.get('color', '').lower() or col_q in item.get('tags', '').lower()
-        ]
-
-    if 'filter_brand' in locals() and filter_brand.strip():
-        b_q = filter_brand.lower().strip()
-        filtered_items = [
-            item for item in filtered_items 
-            if b_q in item.get('brand', '').lower() or b_q in item.get('tags', '').lower()
         ]
 
     if 'filter_loc' in locals() and filter_loc.strip():
@@ -261,9 +335,9 @@ def screen_suchen():
 
     if not filtered_items:
         if len(st.session_state.items_db) == 0:
-            st.info("Aktuell sind keine Fundstücke registriert. Füge ein neues Fundstück über '➕ Hinzufügen' hinzu.")
+            st.info("Aktuell sind keine Fundstücke in der Datenbank vorhanden.")
         else:
-            st.info("Keine Fundstücke gefunden, die auf deine Suchkriterien passen.")
+            st.info("Keine Fundstücke gefunden, die auf deine Suchanfrage passen.")
         return
 
     cols = st.columns(3)
@@ -271,10 +345,9 @@ def screen_suchen():
         col = cols[idx % 3]
         with col:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            if item.get("image_data"):
-                st.image(item["image_data"], width="stretch")
-            elif item.get("image_url"):
-                st.image(item["image_url"], width="stretch")
+            if item.get("image_b64"):
+                img_bytes = base64.b64decode(item["image_b64"])
+                st.image(img_bytes, width="stretch")
             
             st.markdown(f"<div class='card-title'>{item['title']}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='card-tags'>Tags: {item['tags']}</div>", unsafe_allow_html=True)
@@ -292,6 +365,7 @@ def screen_suchen():
 def screen_detail():
     render_header(title_override="FUNDSTÜCK", show_back=True)
     
+    st.session_state.items_db = load_db()
     item = next((i for i in st.session_state.items_db if i['id'] == st.session_state.selected_item_id), None)
     
     if not item:
@@ -301,15 +375,14 @@ def screen_detail():
     col_img, col_info = st.columns([1, 1])
     
     with col_img:
-        st.markdown("### BILDER")
-        if item.get("image_data"):
-            st.image(item["image_data"], width="stretch")
-        elif item.get("image_url"):
-            st.image(item["image_url"], width="stretch")
+        st.markdown("### BILD")
+        if item.get("image_b64"):
+            img_bytes = base64.b64decode(item["image_b64"])
+            st.image(img_bytes, width="stretch")
             
     with col_info:
         st.markdown(f"## {item['title']}")
-        st.markdown(f"**🏷️ Tags:** {item['tags']}")
+        st.markdown(f"**🏷️ Tags (Kategorie & Farbe):** {item['tags']}")
         st.markdown(f"**📍 Findungsort:** {item['location']}")
         st.markdown(f"**📦 Ort der Aufbewahrung:** {item['storage_location']}")
         st.markdown(f"**👤 Finder:** {item['finder_name']}")
@@ -317,18 +390,18 @@ def screen_detail():
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Als abgeholt / zurückgegeben markieren"):
             st.session_state.items_db = [i for i in st.session_state.items_db if i['id'] != item['id']]
-            st.success("Gegenstand wurde aus der Datenbank entfernt.")
+            save_db(st.session_state.items_db)
+            st.success("Gegenstand wurde abgeholt und aus der Datenbank gelöscht!")
             st.session_state.current_screen = "Suchen"
             st.rerun()
 
 # -----------------------------------------------------------------------------
-# 8. SCREEN 3: FUNDSTÜCK MELDEN (HUGGING FACE KI INTEGRATION)
+# 8. SCREEN 3: FUNDSTÜCK MELDEN (HINZUFÜGEN)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header(title_override="HINZUFÜGEN", show_back=True)
     
-    st.markdown("### Bild hochladen oder Foto aufnehmen")
-    
+    st.markdown("### Foto aufnehmen oder hochladen")
     upload_option = st.radio("Upload-Quelle wählen:", ["Datei hochladen", "Kamera nutzen"], horizontal=True)
     
     uploaded_image = None
@@ -341,48 +414,61 @@ def screen_hinzufuegen():
         if camera_file:
             uploaded_image = Image.open(camera_file)
 
-    detected_category = ""
+    auto_cat = "Sonstiges"
+    auto_color = "Unbekannt"
+    auto_tags = ""
     confidence = 0.0
 
     if uploaded_image:
-        st.image(uploaded_image, caption="Hochgeladenes Bild", width=300)
+        st.image(uploaded_image, caption="Vorschau", width=250)
         
-        with st.spinner("Hugging Face KI analysiert das Bild..."):
-            detected_category, confidence = classify_image(uploaded_image)
+        with st.spinner("KI analysiert Bild & Farbe..."):
+            auto_cat, auto_color, auto_tags, confidence = classify_and_generate_tags(uploaded_image)
             
-        st.success(f"🤖 **Hugging Face KI-Erkennung:** {detected_category} (Sicherheit: {confidence*100:.1f}%)")
+        st.success(f"🤖 **KI-Erkennung:** {auto_cat} | **Farbe:** {auto_color}")
 
     st.markdown("---")
-    st.markdown("### Fund-Informationen vervollständigen")
+    st.markdown("### Fund-Informationen eintragen")
     
     with st.form("form_add_item"):
-        title_input = st.text_input("Vorgeschlagener KI-Titel (Anpassbar)", value=detected_category if detected_category else "")
-        tags_input = st.text_input("Tags (Kommagetrennt für Such-Filter)", value=f"{detected_category}, Fundstück, Katharineum" if detected_category else "Fundstück, Katharineum")
+        # Vorausgewählte Werte aus der KI
+        category_index = CATEGORIES.index(auto_cat) if auto_cat in CATEGORIES else CATEGORIES.index("Sonstiges")
+        selected_category = st.selectbox("Kategorie", CATEGORIES, index=category_index)
+        
+        title_input = st.text_input("Titel / Gegenstand", value=f"{selected_category} ({auto_color})" if uploaded_image else "")
+        tags_input = st.text_input("Tags (Automatisch aus Farbe & Kategorie)", value=auto_tags)
         location_input = st.text_input("Findungsort", placeholder="z. B. Schulhof, Turnhalle, Raum 204")
         storage_input = st.text_input("Ort der Aufbewahrung", placeholder="z. B. Sekretariat, Hausmeister")
-        finder_input = st.text_input("Name vom Finder", placeholder="Dein Name / Klasse (Optional)")
+        finder_input = st.text_input("Name vom Finder (Optional)", placeholder="Dein Name / Klasse")
         
-        submit = st.form_submit_button("Fundstück veröffentlichen 🚀")
+        submit = st.form_submit_button("Fundstück speichern 🚀")
         
         if submit:
-            if not title_input or not location_input:
+            if not uploaded_image:
+                st.error("Bitte lade zuerst ein Bild des Gegenstands hoch!")
+            elif not title_input or not location_input:
                 st.error("Bitte mindestens Titel und Findungsort ausfüllen!")
             else:
-                new_id = max([i['id'] for i in st.session_state.items_db], default=0) + 1
+                current_items = load_db()
+                new_id = max([i['id'] for i in current_items], default=0) + 1
+                
                 new_item = {
                     "id": new_id,
                     "title": title_input,
+                    "category": selected_category,
+                    "color": auto_color,
                     "tags": tags_input,
-                    "category": detected_category if detected_category else "Sonstiges",
-                    "color": "Unbekannt",
-                    "brand": "Unbekannt",
                     "location": location_input,
                     "storage_location": storage_input if storage_input else "Sekretariat",
                     "finder_name": finder_input if finder_input else "Anonym",
-                    "image_data": uploaded_image if uploaded_image else None
+                    "image_b64": image_to_base64(uploaded_image)
                 }
-                st.session_state.items_db.append(new_item)
-                st.success("Fundstück erfolgreich registriert!")
+                
+                current_items.append(new_item)
+                save_db(current_items)
+                st.session_state.items_db = current_items
+                
+                st.success("Fundstück erfolgreich geräteübergreifend gespeichert!")
                 st.session_state.current_screen = "Suchen"
                 st.rerun()
 
@@ -391,44 +477,37 @@ def screen_hinzufuegen():
 # -----------------------------------------------------------------------------
 def screen_vermisst():
     render_header(title_override="VERMISST [LOST]", show_back=True)
+    st.session_state.items_db = load_db()
     
     st.markdown("<span class='lost-badge'>HUGGING FACE SMART-MATCH</span>", unsafe_allow_html=True)
-    st.write("Lade ein Foto deines verloren gegangenen Gegenstands hoch. Die KI vergleicht es direkt mit der Fund-Datenbank.")
+    st.write("Lade ein Foto deines verlorenen Gegenstands hoch. Die KI vergleicht es direkt mit der Fund-Datenbank.")
     
     file = st.file_uploader("Bild deines verlorenen Gegenstands hochladen", type=["jpg", "jpeg", "png"], key="lost_uploader")
     
     if file:
         img = Image.open(file)
-        st.image(img, width=250, caption="Dein Such-Bild")
+        st.image(img, width=220, caption="Dein Such-Bild")
         
-        with st.spinner("Hugging Face KI vergleicht Gegenstand..."):
-            predicted_cat, conf = classify_image(img)
+        with st.spinner("KI vergleicht Gegenstand..."):
+            cat, col, tags, conf = classify_and_generate_tags(img)
             
-        st.info(f"Erkannte Kategorie: **{predicted_cat}**")
-        st.markdown("### 🔍 ÄHNLICHE BILDER IN DER DATENBANK")
+        st.info(f"Erkannte Kategorie: **{cat}** | Farbe: **{col}**")
+        st.markdown("### 🔍 MÖGLICHE TREFFER IN DER DATENBANK")
         
-        p_q = predicted_cat.lower()
         matches = [
             i for i in st.session_state.items_db 
-            if p_q in i['title'].lower() or p_q in i['tags'].lower()
+            if cat.lower() in i.get('category', '').lower() or cat.lower() in i.get('tags', '').lower()
         ]
         
         if matches:
             cols = st.columns(min(len(matches), 3))
             for idx, match in enumerate(matches):
                 with cols[idx % 3]:
-                    st.image(match.get('image_data') or match.get('image_url'), width="stretch")
+                    if match.get("image_b64"):
+                        st.image(base64.b64decode(match["image_b64"]), width="stretch")
                     st.caption(f"**{match['title']}**\nOrt: {match['location']}")
         else:
-            st.warning("Aktuell kein passender Gegenstand in der Datenbank vorhanden.")
-
-    st.markdown("---")
-    st.markdown("### Such-Auftrag erstellen")
-    st.text_input("Titel hinzufügen", placeholder="z. B. Meine blaue Jacke")
-    st.text_input("Tags hinzufügen", placeholder="z. B. Jacke, Blau, XL, Adidas")
-    
-    if st.button("Vermisst-Meldung speichern"):
-        st.success("Such-Auftrag gespeichert!")
+            st.warning("Aktuell kein passender Gegenstand in der Datenbank gefunden.")
 
 # -----------------------------------------------------------------------------
 # 10. SCREEN 5: EINSTELLUNGEN
@@ -441,7 +520,7 @@ def screen_einstellungen():
         "👤 Mein Profil / Kontaktdaten",
         "🏫 Schule / Standort (Katharineum)",
         "🔒 Datenschutz & Nutzungsbedingungen",
-        "ℹ️ App-Info & Version (v2.0.0 Hugging Face Edition)"
+        "ℹ️ App-Info & Version (v2.1.0 Persistence & Hugging Face)"
     ]
     
     for opt in settings_options:
