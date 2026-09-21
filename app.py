@@ -22,7 +22,6 @@ def generate_curved_header_svg(title_text: str) -> str:
     svg = f"""
     <svg width="420" height="135" viewBox="0 0 420 135" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
       <defs>
-        <!-- Sanfterer Bogen, damit nichts oben abgeschnitten wird -->
         <path id="gentleArc" d="M 20 45 Q 210 15 400 45" />
         <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#B71C1C" />
@@ -30,19 +29,14 @@ def generate_curved_header_svg(title_text: str) -> str:
         </linearGradient>
       </defs>
       
-      <!-- Deutlich größere, gut lesbare Schrift -->
       <text font-family="'Poppins', sans-serif" font-weight="800" font-size="22" fill="url(#brandGrad)" text-anchor="middle" letter-spacing="1.5">
         <textPath href="#gentleArc" startOffset="50%">{title_text}</textPath>
       </text>
 
-      <!-- Logo zentriert unter dem Text -->
       <g transform="translate(180, 48)">
-        <!-- Fundkiste -->
         <path d="M 5 22 L 30 10 L 55 22 L 55 52 L 30 62 L 5 52 Z" fill="#D11D32" fill-opacity="0.1" stroke="#D11D32" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M 5 22 L 30 32 L 55 22" stroke="#D11D32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M 30 32 L 30 62" stroke="#D11D32" stroke-width="2.5" opacity="0.5"/>
-        
-        <!-- Kleidung / Hoodie -->
         <path d="M 18 18 C 18 12, 42 12, 42 18 L 48 25 L 42 28 L 40 40 L 20 40 L 18 28 L 12 25 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
         <path d="M 26 18 L 30 24 L 34 18" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" fill="none"/>
       </g>
@@ -69,7 +63,7 @@ custom_css = """
         margin-bottom: 10px;
     }
 
-    /* Buttons */
+    /* Streamlit Buttons */
     div.stButton > button {
         border-radius: 12px !important;
         border: 2px solid #D11D32 !important;
@@ -99,7 +93,7 @@ custom_css = """
         border-color: #D11D32 !important;
     }
 
-    /* BÜNDIGE PRODUKTKARTEN MIT IDEALER BILDGRÖSSE */
+    /* BÜNDIGE BIBLIOTHEK-KARTEN */
     .item-card {
         background: #FFFFFF;
         border-radius: 16px;
@@ -117,11 +111,10 @@ custom_css = """
         transform: translateY(-3px);
     }
 
-    /* Gut erkennbare Bildgröße ohne den Bildschirm zu sprengen */
     .item-card-img {
         width: 100%;
-        height: 210px; /* Angenehme, gut lesbare Höhe */
-        object-fit: cover; /* Saubere Anpassung ohne Ränder */
+        height: 210px;
+        object-fit: cover;
         border-radius: 10px;
     }
 
@@ -148,13 +141,26 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* Thumbnails beim Hochladen */
-    .upload-thumb {
-        width: 85px;
-        height: 85px;
+    /* GROSSES HAUPTBILD BEIM HOCHLADEN (3-4x größer) */
+    .main-upload-preview {
+        width: 100%;
+        max-width: 260px;
+        height: 240px;
         object-fit: cover;
-        border-radius: 10px;
-        border: 1.5px solid #D11D32;
+        border-radius: 14px;
+        border: 2px solid #D11D32;
+        box-shadow: 0 4px 12px rgba(209, 29, 50, 0.12);
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    /* KLEINERE ZUSÄTZLICHE THUMBNAILS DARUNTER */
+    .upload-thumb {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1.5px solid #CCCCCC;
         margin-right: 8px;
         margin-bottom: 8px;
     }
@@ -378,7 +384,7 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN
+# 7. SCREEN 2: HINZUFÜGEN (PROMINENTES HAUPTBILD)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -393,13 +399,23 @@ def screen_hinzufuegen():
     auto_cat, auto_col, auto_tags = "Sonstiges", "Unbekannt", ""
     
     if uploaded_imgs:
-        st.markdown("**Vorschau ausgewählte Bilder:**")
-        thumbs_html = "<div style='display:flex; flex-wrap:wrap; margin-bottom:12px;'>"
-        for img in uploaded_imgs:
-            b64 = images_to_base64_list([img])[0]
-            thumbs_html += f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb'/>"
-        thumbs_html += "</div>"
-        st.markdown(thumbs_html, unsafe_allow_html=True)
+        b64_list = images_to_base64_list(uploaded_imgs)
+        
+        # Prominente Anzeige des Hauptbildes + kleine Thumbnails für weitere Bilder
+        preview_html = f"""
+        <div style='margin-bottom:15px;'>
+            <div style='font-size:0.85rem; font-weight:600; color:#555; margin-bottom:6px;'>Ausgewähltes Hauptbild:</div>
+            <img src='data:image/jpeg;base64,{b64_list[0]}' class='main-upload-preview'/>
+        """
+        
+        if len(b64_list) > 1:
+            preview_html += "<div style='font-size:0.85rem; font-weight:600; color:#555; margin-top:10px; margin-bottom:6px;'>Weitere hochgeladene Bilder:</div><div style='display:flex; flex-wrap:wrap;'>"
+            for b64_extra in b64_list[1:]:
+                preview_html += f"<img src='data:image/jpeg;base64,{b64_extra}' class='upload-thumb'/>"
+            preview_html += "</div>"
+            
+        preview_html += "</div>"
+        st.markdown(preview_html, unsafe_allow_html=True)
         
         auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[0])
 
@@ -451,7 +467,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb' style='width:90px; height:90px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='main-upload-preview' style='max-width:200px; height:180px;'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -521,7 +537,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v3.3.0 (Readable Text & Balanced Images)")
+        ("ℹ️ App-Version & Systeminfo", "v3.4.0 (Final Release)")
     ]
 
     for title, sub in settings_list:
