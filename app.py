@@ -17,34 +17,34 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Funktion zur Erzeugung des gebogenen Titels mit dem Logo direkt darunter
+# Erzeugung von sanft gebogenem, gut lesbarem Text + Logo darunter
 def generate_curved_header_svg(title_text: str) -> str:
     svg = f"""
-    <svg width="340" height="150" viewBox="0 0 340 150" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
+    <svg width="420" height="135" viewBox="0 0 420 135" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
       <defs>
-        <path id="textArc" d="M 30 75 A 130 70 0 0 1 310 75" />
+        <!-- Sanfterer Bogen, damit nichts oben abgeschnitten wird -->
+        <path id="gentleArc" d="M 20 45 Q 210 15 400 45" />
         <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#B71C1C" />
           <stop offset="100%" stop-color="#D11D32" />
         </linearGradient>
       </defs>
       
-      <!-- Gebogener Text über dem Logo -->
-      <text font-family="'Poppins', 'Fredoka', sans-serif" font-weight="700" font-size="18" fill="url(#brandGrad)" text-anchor="middle" letter-spacing="2">
-        <textPath href="#textArc" startOffset="50%">{title_text}</textPath>
+      <!-- Deutlich größere, gut lesbare Schrift -->
+      <text font-family="'Poppins', sans-serif" font-weight="800" font-size="22" fill="url(#brandGrad)" text-anchor="middle" letter-spacing="1.5">
+        <textPath href="#gentleArc" startOffset="50%">{title_text}</textPath>
       </text>
 
-      <!-- Logo zentriert unter dem Textbogen -->
-      <g transform="translate(135, 52)">
-        <!-- Fundkiste Base -->
-        <path d="M 5 25 L 35 12 L 65 25 L 65 58 L 35 70 L 5 58 Z" fill="#D11D32" fill-opacity="0.1" stroke="#D11D32" stroke-width="2.5" stroke-linejoin="round"/>
-        <path d="M 5 25 L 35 36 L 65 25" stroke="#D11D32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M 35 36 L 35 70" stroke="#D11D32" stroke-width="2.5" opacity="0.6"/>
+      <!-- Logo zentriert unter dem Text -->
+      <g transform="translate(180, 48)">
+        <!-- Fundkiste -->
+        <path d="M 5 22 L 30 10 L 55 22 L 55 52 L 30 62 L 5 52 Z" fill="#D11D32" fill-opacity="0.1" stroke="#D11D32" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M 5 22 L 30 32 L 55 22" stroke="#D11D32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 30 32 L 30 62" stroke="#D11D32" stroke-width="2.5" opacity="0.5"/>
         
-        <!-- Kleidung / Hoodie Symbol in der Kiste -->
-        <path d="M 20 20 C 20 14, 50 14, 50 20 L 56 28 L 48 31 L 46 45 L 24 45 L 22 31 L 14 28 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M 30 20 L 35 27 L 40 20" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-        <circle cx="35" cy="36" r="2.5" fill="#FFFFFF"/>
+        <!-- Kleidung / Hoodie -->
+        <path d="M 18 18 C 18 12, 42 12, 42 18 L 48 25 L 42 28 L 40 40 L 20 40 L 18 28 L 12 25 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M 26 18 L 30 24 L 34 18" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" fill="none"/>
       </g>
     </svg>
     """
@@ -53,7 +53,7 @@ def generate_curved_header_svg(title_text: str) -> str:
 
 custom_css = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
     .stApp {
         background-color: #FAFAFA;
@@ -65,11 +65,11 @@ custom_css = """
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-top: -10px;
-        margin-bottom: 5px;
+        margin-top: -5px;
+        margin-bottom: 10px;
     }
 
-    /* Smoothe Buttons mit roter Umrandung */
+    /* Buttons */
     div.stButton > button {
         border-radius: 12px !important;
         border: 2px solid #D11D32 !important;
@@ -88,7 +88,7 @@ custom_css = """
         box-shadow: 0 4px 10px rgba(209, 29, 50, 0.22) !important;
     }
 
-    /* Abgerundete Input Felder */
+    /* Input Felder */
     .stTextInput > div > div > input, .stSelectbox > div > div {
         border-radius: 12px !important;
         border: 1.5px solid #E0E0E0 !important;
@@ -99,14 +99,14 @@ custom_css = """
         border-color: #D11D32 !important;
     }
 
-    /* CLEANES HOCHFORMAT-GRID (Bilder im Hochformat ohne weiße Ränder) */
+    /* BÜNDIGE PRODUKTKARTEN MIT IDEALER BILDGRÖSSE */
     .item-card {
         background: #FFFFFF;
         border-radius: 16px;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid #EEEEEE;
         box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -117,22 +117,22 @@ custom_css = """
         transform: translateY(-3px);
     }
 
-    /* HOCHFORMAT (Portrait Mode) für randlosen Fit */
+    /* Gut erkennbare Bildgröße ohne den Bildschirm zu sprengen */
     .item-card-img {
         width: 100%;
-        height: 250px; /* Hochformat Höhe */
-        object-fit: cover; /* Ausfüllen ohne weiße Ränder */
-        border-radius: 12px;
+        height: 210px; /* Angenehme, gut lesbare Höhe */
+        object-fit: cover; /* Saubere Anpassung ohne Ränder */
+        border-radius: 10px;
     }
 
     .item-card-content {
-        padding: 8px 4px 4px 4px;
+        padding: 8px 2px 2px 2px;
         text-align: center;
     }
     
     .item-title {
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 1rem;
         color: #212121;
         white-space: nowrap;
         overflow: hidden;
@@ -140,7 +140,7 @@ custom_css = """
     }
 
     .item-tags {
-        font-size: 0.78rem;
+        font-size: 0.8rem;
         color: #757575;
         white-space: nowrap;
         overflow: hidden;
@@ -148,10 +148,10 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* Kompakte Thumbnails beim Hochladen */
+    /* Thumbnails beim Hochladen */
     .upload-thumb {
-        width: 80px;
-        height: 80px;
+        width: 85px;
+        height: 85px;
         object-fit: cover;
         border-radius: 10px;
         border: 1.5px solid #D11D32;
@@ -257,10 +257,10 @@ if "selected_item_id" not in st.session_state:
 st.session_state.items_db = load_db()
 
 # -----------------------------------------------------------------------------
-# 5. HEADER & NAVIGATION (MIT GEBOGENEM TEXT UM DAS LOGO)
+# 5. HEADER & NAVIGATION
 # -----------------------------------------------------------------------------
 def render_header(title_text="FUNDGRUBE KATHARINEUM", show_back=False):
-    col_back, col_title, col_gear = st.columns([1, 4, 1])
+    col_back, col_title, col_gear = st.columns([1, 5, 1])
     
     with col_back:
         if show_back:
@@ -272,7 +272,7 @@ def render_header(title_text="FUNDGRUBE KATHARINEUM", show_back=False):
     with col_title:
         svg_url = generate_curved_header_svg(title_text)
         st.markdown(
-            f"<div class='header-svg-container'><img src='{svg_url}' style='width:320px;'/></div>", 
+            f"<div class='header-svg-container'><img src='{svg_url}' style='width:380px; max-width:100%;'/></div>", 
             unsafe_allow_html=True
         )
 
@@ -312,7 +312,7 @@ def render_bottom_nav():
             st.rerun()
 
 # -----------------------------------------------------------------------------
-# 6. SCREEN 1: SUCHEN & BIBLIOTHEK (HOCHFORMAT GRID)
+# 6. SCREEN 1: SUCHEN & BIBLIOTHEK
 # -----------------------------------------------------------------------------
 def screen_suchen():
     render_header("FUNDGRUBE KATHARINEUM")
@@ -358,9 +358,8 @@ def screen_suchen():
             if not images and item.get("image_b64"):
                 images = [item["image_b64"]]
                 
-            img_src = f"data:image/jpeg;base64,{images[0]}" if images else "https://via.placeholder.com/200x260"
+            img_src = f"data:image/jpeg;base64,{images[0]}" if images else "https://via.placeholder.com/200x210"
 
-            # Clean Hochformat-Card Rendering
             st.markdown(
                 f"""
                 <div class='item-card'>
@@ -522,7 +521,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v3.2.0 (Curved SVG & Portrait Grid)")
+        ("ℹ️ App-Version & Systeminfo", "v3.3.0 (Readable Text & Balanced Images)")
     ]
 
     for title, sub in settings_list:
