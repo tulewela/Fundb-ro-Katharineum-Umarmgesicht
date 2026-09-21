@@ -8,7 +8,7 @@ from PIL import Image
 from transformers import pipeline
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & EXACT PDF STYLING
+# 1. PAGE CONFIGURATION & SMOOTH STYLING
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Fundgrube Katharineum",
@@ -17,104 +17,116 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS basierend auf der exakten Farb- und Typografieanalyse aus dem PDF
 custom_css = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
     .stApp {
-        background-color: #FFFFFF;
-        color: #111111;
-        font-family: 'Inter', sans-serif;
+        background-color: #FAFAFA;
+        color: #212121;
+        font-family: 'Poppins', sans-serif;
     }
-    
-    /* Gebogener Header-Schriftzug mit dunkler Outline */
-    .arched-header-container {
+
+    /* Elegant curved Header */
+    .curved-header-container {
         display: flex;
         justify-content: center;
         align-items: center;
         margin-top: 10px;
-        margin-bottom: 5px;
+        margin-bottom: 15px;
     }
     
-    .arched-header {
-        font-family: 'Fredoka', cursive, sans-serif;
+    .curved-header {
+        font-family: 'Poppins', sans-serif;
         font-size: 2.2rem;
-        font-weight: 700;
-        color: #FFFFFF;
+        font-weight: 600;
+        color: #D11D32;
         text-transform: uppercase;
         letter-spacing: 2px;
-        -webkit-text-stroke: 2.5px #1B382B;
-        text-shadow: 2px 2px 0px #1B382B;
-        transform: perspective(300px) rotateX(10deg);
         text-align: center;
+        background: -webkit-linear-gradient(45deg, #B71C1C, #D11D32);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        transform: perspective(400px) rotateX(12deg);
+        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.08));
     }
 
-    /* Stempel Badges (LOST & EXAMPLE) */
-    .stamp-badge {
-        display: inline-block;
-        border: 2px solid #FFFFFF;
-        outline: 2px solid #D11D32;
-        background-color: #D11D32;
-        color: white;
-        font-weight: 800;
-        font-size: 0.75rem;
-        padding: 2px 6px;
-        border-radius: 3px;
-        transform: rotate(-3deg);
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    /* Smoothe Buttons mit roter Umrandung */
+    div.stButton > button {
+        border-radius: 12px !important;
+        border: 2px solid #D11D32 !important;
+        background-color: #FFFFFF !important;
+        color: #D11D32 !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.25s ease-in-out !important;
+        box-shadow: 0 2px 6px rgba(209, 29, 50, 0.1) !important;
     }
 
-    /* Input-Felder & Abgerundete Container */
-    .stTextInput > div > div > input {
-        border-radius: 20px !important;
-        border: 2px solid #111111 !important;
-        padding: 8px 15px !important;
+    div.stButton > button:hover {
+        background-color: #D11D32 !important;
+        color: #FFFFFF !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(209, 29, 50, 0.25) !important;
     }
 
-    /* Custom Cards im Grid */
+    /* Abgerundete Input Felder */
+    .stTextInput > div > div > input, .stSelectbox > div > div {
+        border-radius: 12px !important;
+        border: 1.5px solid #E0E0E0 !important;
+        padding: 8px 12px !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #D11D32 !important;
+    }
+
+    /* Card Layout */
     .item-card {
         background: #FFFFFF;
-        border-radius: 12px;
-        padding: 8px;
-        text-align: center;
+        border-radius: 16px;
+        padding: 12px;
+        border: 1px solid #EEEEEE;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 20px;
+        transition: transform 0.2s ease;
+    }
+    
+    .item-card:hover {
+        transform: translateY(-3px);
     }
     
     .item-title {
-        font-family: 'Fredoka', sans-serif;
-        font-weight: 700;
-        font-size: 1.1rem;
-        color: #000000;
-        text-transform: uppercase;
-        margin-top: 6px;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #212121;
+        margin-top: 8px;
     }
 
     .item-tags {
         font-size: 0.8rem;
-        color: #555555;
+        color: #757575;
+        margin-bottom: 8px;
     }
 
-    /* Bildeinfassung im Comic-Look */
-    .img-placeholder-container {
+    /* Einstellungs-Zeilen */
+    .setting-row {
+        background: #FFFFFF;
+        padding: 14px 18px;
         border-radius: 12px;
-        overflow: hidden;
-        border: 2px solid #111111;
-    }
-
-    /* Bottom Navigation Styling */
-    div.stButton > button {
-        border-radius: 25px !important;
-        border: none !important;
-        font-weight: 700 !important;
-        height: 50px !important;
+        border: 1px solid #E0E0E0;
+        margin-bottom: 10px;
+        font-weight: 500;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. DATENBANK (JSON PERSISTENZ)
+# 2. DATENBANK HILFSFUNKTIONEN
 # -----------------------------------------------------------------------------
 DB_FILE = "items_db.json"
 
@@ -134,17 +146,21 @@ def save_db(items):
     except Exception as e:
         st.error(f"Fehler beim Speichern: {e}")
 
-def image_to_base64(pil_img: Image.Image) -> str:
-    buffered = io.BytesIO()
-    if pil_img.mode != "RGB":
-        pil_img = pil_img.convert("RGB")
-    pil_img.save(buffered, format="JPEG", quality=85)
-    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+def images_to_base64_list(pil_images) -> list:
+    encoded_list = []
+    for pil_img in pil_images:
+        buffered = io.BytesIO()
+        if pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+        pil_img.save(buffered, format="JPEG", quality=85)
+        encoded_list.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
+    return encoded_list
 
 # -----------------------------------------------------------------------------
 # 3. HUGGING FACE KI & AUTOMATISCHE ERKENNUNG
 # -----------------------------------------------------------------------------
 CATEGORIES = ["T-Shirt", "Pullover", "Mütze", "Flasche", "Brotdose", "Fahrradhelm", "Sonstiges"]
+COLORS = ["Schwarz", "Weiß", "Grau", "Rot", "Grün", "Blau", "Gelb", "Braun", "Bunt"]
 
 @st.cache_resource
 def load_hf_classifier():
@@ -204,7 +220,7 @@ if "selected_item_id" not in st.session_state:
 st.session_state.items_db = load_db()
 
 # -----------------------------------------------------------------------------
-# 5. HEADER & BOTTOM NAVIGATION (PDF 1:1)
+# 5. HEADER & NAVIGATION
 # -----------------------------------------------------------------------------
 def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=False, show_back=False):
     col_back, col_title, col_gear = st.columns([1, 4, 1])
@@ -217,9 +233,9 @@ def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=False, show_back
                 st.rerun()
 
     with col_title:
-        st.markdown(f"<div class='arched-header-container'><div class='arched-header'>{title_text}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='curved-header-container'><div class='curved-header'>{title_text}</div></div>", unsafe_allow_html=True)
         if show_logo:
-            st.markdown("<div style='text-align:center; font-size: 2.2rem; margin-bottom: 5px;'>🏫</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align:center; font-size: 2rem; margin-bottom: 5px;'>🏫</div>", unsafe_allow_html=True)
 
     with col_gear:
         if st.button("⚙️", key="hdr_gear"):
@@ -231,13 +247,11 @@ def render_bottom_nav():
     c1, c2, c3 = st.columns(3)
     curr = st.session_state.current_screen
 
-    # Aktiver Button kriegt Signalrot (#D11D32), inaktive kriegen Neutralgrau (#737373)
-    style_suchen = "background-color: #D11D32 !important; color: white !important;" if curr == "Suchen" else "background-color: #737373 !important; color: white !important;"
-    style_add = "background-color: #D11D32 !important; color: white !important;" if curr == "Hinzufügen" else "background-color: #737373 !important; color: white !important;"
-    style_lost = "background-color: #D11D32 !important; color: white !important;" if curr == "Vermisst" else "background-color: #737373 !important; color: white !important;"
+    style_active = "background-color: #D11D32 !important; color: white !important; border: 2px solid #D11D32 !important;"
+    style_inactive = "background-color: #FFFFFF !important; color: #D11D32 !important; border: 2px solid #D11D32 !important;"
 
     with c1:
-        st.markdown(f"<style>div.element-container:has(#nav_btn_suchen) + div button {{ {style_suchen} }}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>div.element-container:has(#nav_btn_suchen) + div button {{ {style_active if curr == 'Suchen' else style_inactive} }}</style>", unsafe_allow_html=True)
         st.markdown("<span id='nav_btn_suchen'></span>", unsafe_allow_html=True)
         if st.button("🔍  Suchen", width="stretch", key="btn_nav_suchen"):
             st.session_state.current_screen = "Suchen"
@@ -245,38 +259,37 @@ def render_bottom_nav():
             st.rerun()
 
     with c2:
-        st.markdown(f"<style>div.element-container:has(#nav_btn_add) + div button {{ {style_add} }}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>div.element-container:has(#nav_btn_add) + div button {{ {style_active if curr == 'Hinzufügen' else style_inactive} }}</style>", unsafe_allow_html=True)
         st.markdown("<span id='nav_btn_add'></span>", unsafe_allow_html=True)
         if st.button("➕  Hinzufügen", width="stretch", key="btn_nav_add"):
             st.session_state.current_screen = "Hinzufügen"
             st.rerun()
 
     with c3:
-        st.markdown(f"<style>div.element-container:has(#nav_btn_lost) + div button {{ {style_lost} }}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>div.element-container:has(#nav_btn_lost) + div button {{ {style_active if curr == 'Vermisst' else style_inactive} }}</style>", unsafe_allow_html=True)
         st.markdown("<span id='nav_btn_lost'></span>", unsafe_allow_html=True)
         if st.button("🏷️  Vermisst", width="stretch", key="btn_nav_lost"):
             st.session_state.current_screen = "Vermisst"
             st.rerun()
 
 # -----------------------------------------------------------------------------
-# 6. SCREEN 1: STARTBILDSCHIRM & SUCHEN
+# 6. SCREEN 1: SUCHEN & FILTERN
 # -----------------------------------------------------------------------------
 def screen_suchen():
     render_header("FUNDGRUBE KATHARINEUM", show_logo=True)
     st.session_state.items_db = load_db()
 
-    search_query = st.text_input("", placeholder="Suchen Q", key="search_bar_input")
+    search_query = st.text_input("", placeholder="Suchen nach Gegenstand, Farbe, Ort...", key="search_bar_input")
 
-    with st.expander("Tags hinzufügen ∇", expanded=False):
+    # Fenster-Filter ohne EXAMPLE Stempel
+    with st.expander("Filter & Tags auswählen ∇", expanded=False):
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("<span class='stamp-badge'>EXAMPLE</span> **Fundstück**", unsafe_allow_html=True)
-            filter_cat = st.selectbox("", ["Alle"] + CATEGORIES, key="f_cat")
-            st.markdown("<span class='stamp-badge'>EXAMPLE</span> **Farbe**", unsafe_allow_html=True)
-            filter_color = st.selectbox("", ["Alle", "Schwarz", "Weiß", "Grau", "Rot", "Grün", "Blau", "Gelb", "Braun", "Bunt"], key="f_col")
+            selected_cats = st.multiselect("Kategorie auswählen", CATEGORIES, key="f_cats")
         with c2:
-            st.markdown("<span class='stamp-badge'>EXAMPLE</span> **Ort**", unsafe_allow_html=True)
-            filter_loc = st.text_input("", placeholder="Ort suchen...", key="f_loc")
+            selected_colors = st.multiselect("Farbe auswählen", COLORS, key="f_colors")
+        
+        filter_loc = st.text_input("Ort filtern", placeholder="z.B. Schulhof, Sporthalle", key="f_loc")
 
     st.markdown("---")
 
@@ -286,11 +299,15 @@ def screen_suchen():
         q = search_query.lower().strip()
         filtered = [i for i in filtered if q in i.get('title','').lower() or q in i.get('tags','').lower() or q in i.get('location','').lower()]
 
-    if 'filter_cat' in locals() and filter_cat != "Alle":
-        filtered = [i for i in filtered if filter_cat.lower() == i.get('category','').lower()]
+    if 'selected_cats' in locals() and selected_cats:
+        filtered = [i for i in filtered if any(c.lower() == i.get('category','').lower() for c in selected_cats)]
 
-    if 'filter_color' in locals() and filter_color != "Alle":
-        filtered = [i for i in filtered if filter_color.lower() in i.get('color','').lower()]
+    if 'selected_colors' in locals() and selected_colors:
+        filtered = [i for i in filtered if any(col.lower() in i.get('color','').lower() or col.lower() in i.get('tags','').lower() for col in selected_colors)]
+
+    if 'filter_loc' in locals() and filter_loc.strip():
+        l_q = filter_loc.lower().strip()
+        filtered = [i for i in filtered if l_q in i.get('location','').lower()]
 
     if not filtered:
         st.info("Keine Fundstücke gefunden.")
@@ -300,54 +317,63 @@ def screen_suchen():
     for idx, item in enumerate(filtered):
         with cols[idx % 3]:
             st.markdown("<div class='item-card'>", unsafe_allow_html=True)
-            if item.get("image_b64"):
-                st.image(base64.b64decode(item["image_b64"]), use_container_width=True)
+            images = item.get("images_b64", [])
+            if not images and item.get("image_b64"):
+                images = [item["image_b64"]]
+                
+            if images:
+                st.image(base64.b64decode(images[0]), use_container_width=True)
+                
             st.markdown(f"<div class='item-title'>{item['title']}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='item-tags'>Tags: {item['tags']}</div>", unsafe_allow_html=True)
-            if st.button("Details", key=f"btn_det_{item['id']}"):
+            
+            if st.button("Details anzeigen", key=f"btn_det_{item['id']}"):
                 st.session_state.selected_item_id = item['id']
                 st.session_state.current_screen = "Detail"
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN
+# 7. SCREEN 2: HINZUFÜGEN (MEHRERE BILDER)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
 
-    c_upload, c_preview = st.columns([1.2, 1])
-
-    uploaded_img = None
-    with c_upload:
-        st.markdown("### Bild hochladen")
-        f = st.file_uploader("Bild aus Dateien hier hochladen", type=["jpg", "png", "jpeg"])
-        if f:
-            uploaded_img = Image.open(f)
+    st.markdown("### Bilder hochladen (Mehrere möglich)")
+    files = st.file_uploader("Bilder aus Dateien hier hochladen", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+    
+    uploaded_imgs = []
+    if files:
+        uploaded_imgs = [Image.open(f) for f in files]
 
     auto_cat, auto_col, auto_tags = "Sonstiges", "Unbekannt", ""
-    if uploaded_img:
-        with c_preview:
-            st.markdown("### HOCHGELADENE BILDER")
-            st.image(uploaded_img, width=200)
-            auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_img)
+    
+    if uploaded_imgs:
+        st.markdown("### Vorschau hochgeladene Bilder")
+        cols = st.columns(min(len(uploaded_imgs), 4))
+        for idx, img in enumerate(uploaded_imgs):
+            with cols[idx % 4]:
+                st.image(img, use_container_width=True)
+        
+        # Nutzen das erste Bild für die KI
+        auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[0])
 
     st.markdown("---")
     with st.form("form_add"):
         cat_idx = CATEGORIES.index(auto_cat) if auto_cat in CATEGORIES else 6
         sel_cat = st.selectbox("Kategorie", CATEGORIES, index=cat_idx)
         
-        titel = st.text_input("Vorgeschlagener KI Titel ✏️", value=f"{sel_cat} ({auto_col})" if uploaded_img else "")
-        tags = st.text_input("Vorgeschlagende KI Tags ✏️", value=auto_tags)
-        ort = st.text_input("Findungsort", placeholder="z. B. Schulhof")
-        aufbewahrung = st.text_input("Ort der Aufbewahrung", placeholder="z. B. Sekretariat")
-        finder = st.text_input("Name vom Finder", placeholder="Dein Name")
+        titel = st.text_input("Vorgeschlagener KI Titel", value=f"{sel_cat} ({auto_col})" if uploaded_imgs else "")
+        tags = st.text_input("Vorgeschlagende KI Tags", value=auto_tags)
+        ort = st.text_input("Findungsort", placeholder="z. B. Schulhof, Mensa")
+        aufbewahrung = st.text_input("Ort der Aufbewahrung", placeholder="z. B. Sekretariat, Hausmeister")
+        finder = st.text_input("Name vom Finder", placeholder="Dein Name / Klasse")
 
-        if st.form_submit_button("Fundstück speichern"):
-            if not uploaded_img:
-                st.error("Bitte lade ein Bild hoch!")
+        if st.form_submit_button("Fundstück speichern 🚀"):
+            if not uploaded_imgs:
+                st.error("Bitte lade mindestens ein Bild hoch!")
             elif not titel or not ort:
-                st.error("Titel und Findungsort ausfüllen!")
+                st.error("Titel und Findungsort bitte ausfüllen!")
             else:
                 db = load_db()
                 new_id = max([i['id'] for i in db], default=0) + 1
@@ -360,7 +386,7 @@ def screen_hinzufuegen():
                     "location": ort,
                     "storage_location": aufbewahrung if aufbewahrung else "Sekretariat",
                     "finder_name": finder if finder else "Anonym",
-                    "image_b64": image_to_base64(uploaded_img)
+                    "images_b64": images_to_base64_list(uploaded_imgs)
                 }
                 db.append(new_item)
                 save_db(db)
@@ -368,39 +394,42 @@ def screen_hinzufuegen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 8. SCREEN 3: VERMISST [LOST]
+# 8. SCREEN 3: VERMISST
 # -----------------------------------------------------------------------------
 def screen_vermisst():
     render_header("VERMISST", show_back=True)
     st.session_state.items_db = load_db()
 
-    f = st.file_uploader("Bild aus Dateien hier hochladen", type=["jpg", "png", "jpeg"])
+    st.markdown("### Foto deines verlorenen Gegenstands hochladen")
+    f = st.file_uploader("Bild auswählen", type=["jpg", "png", "jpeg"], key="lost_file")
     
     if f:
         img = Image.open(f)
-        st.image(img, width=180)
+        st.image(img, width=200)
         cat, col, tags = classify_and_generate_tags(img)
 
-        st.markdown("### ÄHNLICHE BILDER")
+        st.markdown("### ÄHNLEICHE BILDER AUS DER DATENBANK")
         matches = [i for i in st.session_state.items_db if cat.lower() in i.get('category','').lower()]
 
         if matches:
             cols = st.columns(3)
             for idx, m in enumerate(matches):
                 with cols[idx % 3]:
-                    if m.get("image_b64"):
-                        st.image(base64.b64decode(m["image_b64"]), use_container_width=True)
+                    imgs = m.get("images_b64", [])
+                    if not imgs and m.get("image_b64"): imgs = [m["image_b64"]]
+                    if imgs:
+                        st.image(base64.b64decode(imgs[0]), use_container_width=True)
                     st.caption(m['title'])
         else:
-            st.info("Keine ähnlichen Bilder in der Datenbank.")
+            st.info("Keine ähnlichen Bilder in der Datenbank gefunden.")
 
     st.text_input("Titel hinzufügen")
     st.text_input("Tags hinzufügen")
     
-    st.toggle("Benachrichtigung", value=True)
+    st.toggle("Bei Match benachrichtigen", value=True)
 
 # -----------------------------------------------------------------------------
-# 9. SCREEN 4: FUNDSTÜCK DETAILANSICHT
+# 9. SCREEN 4: DETAILANSICHT (MEHRERE BILDER GALERIE)
 # -----------------------------------------------------------------------------
 def screen_detail():
     render_header("FUNDSTÜCK", show_back=True)
@@ -411,17 +440,25 @@ def screen_detail():
         st.error("Gegenstand nicht gefunden.")
         return
 
-    st.markdown("### BILDER")
-    if item.get("image_b64"):
-        st.image(base64.b64decode(item["image_b64"]), width=300)
+    st.markdown("### GALERIE")
+    images = item.get("images_b64", [])
+    if not images and item.get("image_b64"):
+        images = [item["image_b64"]]
+
+    if images:
+        cols = st.columns(min(len(images), 3))
+        for idx, b64_img in enumerate(images):
+            with cols[idx % 3]:
+                st.image(base64.b64decode(b64_img), use_container_width=True)
 
     st.markdown(f"## {item['title']}")
-    st.markdown(f"**Tags:** {item['tags']}")
-    st.markdown(f"**Findungsort:** {item['location']}")
-    st.markdown(f"**Ort der Aufbewahrung:** {item['storage_location']}")
-    st.markdown(f"**Name vom Finder:** {item['finder_name']}")
+    st.markdown(f"**🏷️ Tags:** {item['tags']}")
+    st.markdown(f"**📍 Findungsort:** {item['location']}")
+    st.markdown(f"**📦 Ort der Aufbewahrung:** {item['storage_location']}")
+    st.markdown(f"**👤 Name vom Finder:** {item['finder_name']}")
 
-    if st.button("Als abgeholt markieren"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Als abgeholt / zurückgegeben markieren"):
         st.session_state.items_db = [i for i in st.session_state.items_db if i['id'] != item['id']]
         save_db(st.session_state.items_db)
         st.session_state.current_screen = "Suchen"
@@ -433,12 +470,20 @@ def screen_detail():
 def screen_einstellungen():
     render_header("EINSTELLUNGEN", show_back=True)
 
-    for i in range(5):
-        c_txt, c_arr = st.columns([5, 1])
+    settings_list = [
+        ("🔔 Push-Benachrichtigungen & Match-Alerts", "Aktiviert"),
+        ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
+        ("🏫 Schulstandort", "Katharineum zu Lübeck"),
+        ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
+        ("ℹ️ App-Version & Systeminfo", "v3.0.0 (Curved & Smoothed)")
+    ]
+
+    for title, sub in settings_list:
+        c_txt, c_btn = st.columns([4, 1])
         with c_txt:
-            st.write("verschiedene Einstellungen")
-        with c_arr:
-            st.button("→", key=f"einst_arrow_{i}")
+            st.markdown(f"**{title}**  \n<small style='color:#757575;'>{sub}</small>", unsafe_allow_html=True)
+        with c_btn:
+            st.button("Anpassen", key=f"einst_btn_{title}")
         st.markdown("---")
 
 # -----------------------------------------------------------------------------
