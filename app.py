@@ -17,6 +17,19 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Maßgeschneidertes Fundkisten-Logo als Vektorgrafik (SVG Data-URL)
+LOGO_SVG = """<svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M15 40 L50 22 L85 40 L85 75 L50 90 L15 75 Z" fill="#D11D32" fill-opacity="0.08" stroke="#D11D32" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M15 40 L50 55 L85 40" stroke="#D11D32" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 55 L50 90" stroke="#D11D32" stroke-width="4" stroke-linecap="round"/>
+  <path d="M50 32 C47 32 46 28 49 26 C51 24 54 26 53 28 C52 29 50 30 50 32 Z" stroke="#D11D32" stroke-width="3" fill="none"/>
+  <path d="M36 42 L50 34 L64 42" stroke="#D11D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 41 L32 45 L35 52 L40 50 L40 65 L60 65 L60 50 L65 52 L68 45 L62 41 C58 43 42 43 38 41 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>"""
+
+LOGO_B64 = base64.b64encode(LOGO_SVG.encode('utf-8')).decode('utf-8')
+LOGO_DATA_URL = f"data:image/svg+xml;base64,{LOGO_B64}"
+
 custom_css = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
@@ -30,15 +43,22 @@ custom_css = """
     /* Elegant curved Header */
     .curved-header-container {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
-        margin-top: 10px;
-        margin-bottom: 15px;
+        margin-top: 5px;
+        margin-bottom: 10px;
     }
     
+    .app-logo {
+        width: 65px;
+        height: 65px;
+        margin-bottom: 4px;
+    }
+
     .curved-header {
         font-family: 'Poppins', sans-serif;
-        font-size: 2.2rem;
+        font-size: 2rem;
         font-weight: 600;
         color: #D11D32;
         text-transform: uppercase;
@@ -47,8 +67,8 @@ custom_css = """
         background: -webkit-linear-gradient(45deg, #B71C1C, #D11D32);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        transform: perspective(400px) rotateX(12deg);
-        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.08));
+        transform: perspective(400px) rotateX(10deg);
+        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.06));
     }
 
     /* Smoothe Buttons mit roter Umrandung */
@@ -58,16 +78,16 @@ custom_css = """
         background-color: #FFFFFF !important;
         color: #D11D32 !important;
         font-weight: 600 !important;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.25s ease-in-out !important;
-        box-shadow: 0 2px 6px rgba(209, 29, 50, 0.1) !important;
+        padding: 0.4rem 0.8rem !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 2px 5px rgba(209, 29, 50, 0.08) !important;
     }
 
     div.stButton > button:hover {
         background-color: #D11D32 !important;
         color: #FFFFFF !important;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(209, 29, 50, 0.25) !important;
+        box-shadow: 0 4px 10px rgba(209, 29, 50, 0.22) !important;
     }
 
     /* Abgerundete Input Felder */
@@ -81,31 +101,68 @@ custom_css = """
         border-color: #D11D32 !important;
     }
 
-    /* Card Layout */
+    /* BÜNDIGES GRID LAYOUT (Absolut gleich große Karten) */
     .item-card {
         background: #FFFFFF;
         border-radius: 16px;
         padding: 12px;
         border: 1px solid #EEEEEE;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         margin-bottom: 20px;
+        height: 330px; /* Einheitliche Kartenhöhe */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
         transition: transform 0.2s ease;
     }
     
     .item-card:hover {
         transform: translateY(-3px);
     }
+
+    .item-card-img {
+        width: 100%;
+        height: 170px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid #F0F0F0;
+    }
+
+    .item-card-content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
     
     .item-title {
         font-weight: 600;
-        font-size: 1rem;
+        font-size: 0.95rem;
         color: #212121;
-        margin-top: 8px;
+        margin-top: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .item-tags {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         color: #757575;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 6px;
+    }
+
+    /* Kleine kompakte Thumbnails beim Hochladen */
+    .upload-thumb {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1.5px solid #D11D32;
+        margin-right: 8px;
         margin-bottom: 8px;
     }
 
@@ -117,9 +174,6 @@ custom_css = """
         border: 1px solid #E0E0E0;
         margin-bottom: 10px;
         font-weight: 500;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
     }
 </style>
 """
@@ -222,7 +276,7 @@ st.session_state.items_db = load_db()
 # -----------------------------------------------------------------------------
 # 5. HEADER & NAVIGATION
 # -----------------------------------------------------------------------------
-def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=False, show_back=False):
+def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=True, show_back=False):
     col_back, col_title, col_gear = st.columns([1, 4, 1])
     
     with col_back:
@@ -233,9 +287,15 @@ def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=False, show_back
                 st.rerun()
 
     with col_title:
-        st.markdown(f"<div class='curved-header-container'><div class='curved-header'>{title_text}</div></div>", unsafe_allow_html=True)
-        if show_logo:
-            st.markdown("<div style='text-align:center; font-size: 2rem; margin-bottom: 5px;'>🏫</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class='curved-header-container'>
+                {f"<img src='{LOGO_DATA_URL}' class='app-logo'/>" if show_logo else ""}
+                <div class='curved-header'>{title_text}</div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
     with col_gear:
         if st.button("⚙️", key="hdr_gear"):
@@ -243,7 +303,7 @@ def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=False, show_back
             st.rerun()
 
 def render_bottom_nav():
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     curr = st.session_state.current_screen
 
@@ -273,7 +333,7 @@ def render_bottom_nav():
             st.rerun()
 
 # -----------------------------------------------------------------------------
-# 6. SCREEN 1: SUCHEN & FILTERN
+# 6. SCREEN 1: SUCHEN & FILTERN (BÜNDIGES GRID)
 # -----------------------------------------------------------------------------
 def screen_suchen():
     render_header("FUNDGRUBE KATHARINEUM", show_logo=True)
@@ -281,7 +341,6 @@ def screen_suchen():
 
     search_query = st.text_input("", placeholder="Suchen nach Gegenstand, Farbe, Ort...", key="search_bar_input")
 
-    # Fenster-Filter ohne EXAMPLE Stempel
     with st.expander("Filter & Tags auswählen ∇", expanded=False):
         c1, c2 = st.columns(2)
         with c1:
@@ -316,30 +375,37 @@ def screen_suchen():
     cols = st.columns(3)
     for idx, item in enumerate(filtered):
         with cols[idx % 3]:
-            st.markdown("<div class='item-card'>", unsafe_allow_html=True)
             images = item.get("images_b64", [])
             if not images and item.get("image_b64"):
                 images = [item["image_b64"]]
                 
-            if images:
-                st.image(base64.b64decode(images[0]), use_container_width=True)
-                
-            st.markdown(f"<div class='item-title'>{item['title']}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='item-tags'>Tags: {item['tags']}</div>", unsafe_allow_html=True)
-            
-            if st.button("Details anzeigen", key=f"btn_det_{item['id']}"):
+            img_src = f"data:image/jpeg;base64,{images[0]}" if images else "https://via.placeholder.com/150"
+
+            # HTML Rendering für absolut bündiges, sauberes Karten-Layout
+            st.markdown(
+                f"""
+                <div class='item-card'>
+                    <img src='{img_src}' class='item-card-img'/>
+                    <div class='item-card-content'>
+                        <div class='item-title'>{item['title']}</div>
+                        <div class='item-tags'>Tags: {item['tags']}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button("Details anzeigen", key=f"btn_det_{item['id']}", use_container_width=True):
                 st.session_state.selected_item_id = item['id']
                 st.session_state.current_screen = "Detail"
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (MEHRERE BILDER)
+# 7. SCREEN 2: HINZUFÜGEN (KOMPAKTE BILDVORSCHAU)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
-    render_header("HINZUFÜGEN", show_back=True)
+    render_header("HINZUFÜGEN", show_logo=False, show_back=True)
 
-    st.markdown("### Bilder hochladen (Mehrere möglich)")
+    st.markdown("### Bilder hochladen")
     files = st.file_uploader("Bilder aus Dateien hier hochladen", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
     
     uploaded_imgs = []
@@ -349,11 +415,14 @@ def screen_hinzufuegen():
     auto_cat, auto_col, auto_tags = "Sonstiges", "Unbekannt", ""
     
     if uploaded_imgs:
-        st.markdown("### Vorschau hochgeladene Bilder")
-        cols = st.columns(min(len(uploaded_imgs), 4))
-        for idx, img in enumerate(uploaded_imgs):
-            with cols[idx % 4]:
-                st.image(img, use_container_width=True)
+        st.markdown("**Ausgewählte Bilder (Vorschau):**")
+        # Kompakte Thumbnails nebeneinander anzeigen
+        thumbs_html = "<div style='display:flex; flex-wrap:wrap; margin-bottom:15px;'>"
+        for img in uploaded_imgs:
+            b64 = images_to_base64_list([img])[0]
+            thumbs_html += f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb'/>"
+        thumbs_html += "</div>"
+        st.markdown(thumbs_html, unsafe_allow_html=True)
         
         # Nutzen das erste Bild für die KI
         auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[0])
@@ -397,7 +466,7 @@ def screen_hinzufuegen():
 # 8. SCREEN 3: VERMISST
 # -----------------------------------------------------------------------------
 def screen_vermisst():
-    render_header("VERMISST", show_back=True)
+    render_header("VERMISST", show_logo=False, show_back=True)
     st.session_state.items_db = load_db()
 
     st.markdown("### Foto deines verlorenen Gegenstands hochladen")
@@ -405,10 +474,12 @@ def screen_vermisst():
     
     if f:
         img = Image.open(f)
-        st.image(img, width=200)
+        b64 = images_to_base64_list([img])[0]
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb' style='width:110px; height:110px;'/>", unsafe_allow_html=True)
+        
         cat, col, tags = classify_and_generate_tags(img)
 
-        st.markdown("### ÄHNLEICHE BILDER AUS DER DATENBANK")
+        st.markdown("### ÄHNLICHE BILDER AUS DER DATENBANK")
         matches = [i for i in st.session_state.items_db if cat.lower() in i.get('category','').lower()]
 
         if matches:
@@ -429,10 +500,10 @@ def screen_vermisst():
     st.toggle("Bei Match benachrichtigen", value=True)
 
 # -----------------------------------------------------------------------------
-# 9. SCREEN 4: DETAILANSICHT (MEHRERE BILDER GALERIE)
+# 9. SCREEN 4: DETAILANSICHT
 # -----------------------------------------------------------------------------
 def screen_detail():
-    render_header("FUNDSTÜCK", show_back=True)
+    render_header("FUNDSTÜCK", show_logo=False, show_back=True)
     st.session_state.items_db = load_db()
     item = next((i for i in st.session_state.items_db if i['id'] == st.session_state.selected_item_id), None)
 
@@ -468,14 +539,14 @@ def screen_detail():
 # 10. SCREEN 5: EINSTELLUNGEN
 # -----------------------------------------------------------------------------
 def screen_einstellungen():
-    render_header("EINSTELLUNGEN", show_back=True)
+    render_header("EINSTELLUNGEN", show_logo=False, show_back=True)
 
     settings_list = [
         ("🔔 Push-Benachrichtigungen & Match-Alerts", "Aktiviert"),
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v3.0.0 (Curved & Smoothed)")
+        ("ℹ️ App-Version & Systeminfo", "v3.1.0 (Clean & Aligned)")
     ]
 
     for title, sub in settings_list:
