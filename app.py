@@ -8,7 +8,7 @@ from PIL import Image
 from transformers import pipeline
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & SMOOTH STYLING
+# 1. PAGE CONFIGURATION & STYLING
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Fundgrube Katharineum",
@@ -17,18 +17,39 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Maßgeschneidertes Fundkisten-Logo als Vektorgrafik (SVG Data-URL)
-LOGO_SVG = """<svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M15 40 L50 22 L85 40 L85 75 L50 90 L15 75 Z" fill="#D11D32" fill-opacity="0.08" stroke="#D11D32" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M15 40 L50 55 L85 40" stroke="#D11D32" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M50 55 L50 90" stroke="#D11D32" stroke-width="4" stroke-linecap="round"/>
-  <path d="M50 32 C47 32 46 28 49 26 C51 24 54 26 53 28 C52 29 50 30 50 32 Z" stroke="#D11D32" stroke-width="3" fill="none"/>
-  <path d="M36 42 L50 34 L64 42" stroke="#D11D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M38 41 L32 45 L35 52 L40 50 L40 65 L60 65 L60 50 L65 52 L68 45 L62 41 C58 43 42 43 38 41 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
-</svg>"""
+# Funktion zur Erzeugung des gebogenen Titels mit dem Logo direkt darunter
+def generate_curved_header_svg(title_text: str) -> str:
+    svg = f"""
+    <svg width="340" height="150" viewBox="0 0 340 150" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
+      <defs>
+        <path id="textArc" d="M 30 75 A 130 70 0 0 1 310 75" />
+        <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#B71C1C" />
+          <stop offset="100%" stop-color="#D11D32" />
+        </linearGradient>
+      </defs>
+      
+      <!-- Gebogener Text über dem Logo -->
+      <text font-family="'Poppins', 'Fredoka', sans-serif" font-weight="700" font-size="18" fill="url(#brandGrad)" text-anchor="middle" letter-spacing="2">
+        <textPath href="#textArc" startOffset="50%">{title_text}</textPath>
+      </text>
 
-LOGO_B64 = base64.b64encode(LOGO_SVG.encode('utf-8')).decode('utf-8')
-LOGO_DATA_URL = f"data:image/svg+xml;base64,{LOGO_B64}"
+      <!-- Logo zentriert unter dem Textbogen -->
+      <g transform="translate(135, 52)">
+        <!-- Fundkiste Base -->
+        <path d="M 5 25 L 35 12 L 65 25 L 65 58 L 35 70 L 5 58 Z" fill="#D11D32" fill-opacity="0.1" stroke="#D11D32" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M 5 25 L 35 36 L 65 25" stroke="#D11D32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 35 36 L 35 70" stroke="#D11D32" stroke-width="2.5" opacity="0.6"/>
+        
+        <!-- Kleidung / Hoodie Symbol in der Kiste -->
+        <path d="M 20 20 C 20 14, 50 14, 50 20 L 56 28 L 48 31 L 46 45 L 24 45 L 22 31 L 14 28 Z" fill="#D11D32" stroke="#D11D32" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M 30 20 L 35 27 L 40 20" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <circle cx="35" cy="36" r="2.5" fill="#FFFFFF"/>
+      </g>
+    </svg>
+    """
+    b64 = base64.b64encode(svg.encode('utf-8')).decode('utf-8')
+    return f"data:image/svg+xml;base64,{b64}"
 
 custom_css = """
 <style>
@@ -40,35 +61,12 @@ custom_css = """
         font-family: 'Poppins', sans-serif;
     }
 
-    /* Elegant curved Header */
-    .curved-header-container {
+    .header-svg-container {
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
-        margin-top: 5px;
-        margin-bottom: 10px;
-    }
-    
-    .app-logo {
-        width: 65px;
-        height: 65px;
-        margin-bottom: 4px;
-    }
-
-    .curved-header {
-        font-family: 'Poppins', sans-serif;
-        font-size: 2rem;
-        font-weight: 600;
-        color: #D11D32;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        text-align: center;
-        background: -webkit-linear-gradient(45deg, #B71C1C, #D11D32);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        transform: perspective(400px) rotateX(10deg);
-        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.06));
+        margin-top: -10px;
+        margin-bottom: 5px;
     }
 
     /* Smoothe Buttons mit roter Umrandung */
@@ -101,15 +99,14 @@ custom_css = """
         border-color: #D11D32 !important;
     }
 
-    /* BÜNDIGES GRID LAYOUT (Absolut gleich große Karten) */
+    /* CLEANES HOCHFORMAT-GRID (Bilder im Hochformat ohne weiße Ränder) */
     .item-card {
         background: #FFFFFF;
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
         border: 1px solid #EEEEEE;
         box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         margin-bottom: 20px;
-        height: 330px; /* Einheitliche Kartenhöhe */
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -120,19 +117,16 @@ custom_css = """
         transform: translateY(-3px);
     }
 
+    /* HOCHFORMAT (Portrait Mode) für randlosen Fit */
     .item-card-img {
         width: 100%;
-        height: 170px;
-        object-fit: cover;
-        border-radius: 10px;
-        border: 1px solid #F0F0F0;
+        height: 250px; /* Hochformat Höhe */
+        object-fit: cover; /* Ausfüllen ohne weiße Ränder */
+        border-radius: 12px;
     }
 
     .item-card-content {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        padding: 8px 4px 4px 4px;
         text-align: center;
     }
     
@@ -140,7 +134,6 @@ custom_css = """
         font-weight: 600;
         font-size: 0.95rem;
         color: #212121;
-        margin-top: 6px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -152,28 +145,18 @@ custom_css = """
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        margin-bottom: 6px;
+        margin-top: 2px;
     }
 
-    /* Kleine kompakte Thumbnails beim Hochladen */
+    /* Kompakte Thumbnails beim Hochladen */
     .upload-thumb {
         width: 80px;
         height: 80px;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 1.5px solid #D11D32;
         margin-right: 8px;
         margin-bottom: 8px;
-    }
-
-    /* Einstellungs-Zeilen */
-    .setting-row {
-        background: #FFFFFF;
-        padding: 14px 18px;
-        border-radius: 12px;
-        border: 1px solid #E0E0E0;
-        margin-bottom: 10px;
-        font-weight: 500;
     }
 </style>
 """
@@ -211,7 +194,7 @@ def images_to_base64_list(pil_images) -> list:
     return encoded_list
 
 # -----------------------------------------------------------------------------
-# 3. HUGGING FACE KI & AUTOMATISCHE ERKENNUNG
+# 3. HUGGING FACE KI ERKENNUNG
 # -----------------------------------------------------------------------------
 CATEGORIES = ["T-Shirt", "Pullover", "Mütze", "Flasche", "Brotdose", "Fahrradhelm", "Sonstiges"]
 COLORS = ["Schwarz", "Weiß", "Grau", "Rot", "Grün", "Blau", "Gelb", "Braun", "Bunt"]
@@ -274,9 +257,9 @@ if "selected_item_id" not in st.session_state:
 st.session_state.items_db = load_db()
 
 # -----------------------------------------------------------------------------
-# 5. HEADER & NAVIGATION
+# 5. HEADER & NAVIGATION (MIT GEBOGENEM TEXT UM DAS LOGO)
 # -----------------------------------------------------------------------------
-def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=True, show_back=False):
+def render_header(title_text="FUNDGRUBE KATHARINEUM", show_back=False):
     col_back, col_title, col_gear = st.columns([1, 4, 1])
     
     with col_back:
@@ -287,13 +270,9 @@ def render_header(title_text="FUNDGRUBE KATHARINEUM", show_logo=True, show_back=
                 st.rerun()
 
     with col_title:
+        svg_url = generate_curved_header_svg(title_text)
         st.markdown(
-            f"""
-            <div class='curved-header-container'>
-                {f"<img src='{LOGO_DATA_URL}' class='app-logo'/>" if show_logo else ""}
-                <div class='curved-header'>{title_text}</div>
-            </div>
-            """, 
+            f"<div class='header-svg-container'><img src='{svg_url}' style='width:320px;'/></div>", 
             unsafe_allow_html=True
         )
 
@@ -333,10 +312,10 @@ def render_bottom_nav():
             st.rerun()
 
 # -----------------------------------------------------------------------------
-# 6. SCREEN 1: SUCHEN & FILTERN (BÜNDIGES GRID)
+# 6. SCREEN 1: SUCHEN & BIBLIOTHEK (HOCHFORMAT GRID)
 # -----------------------------------------------------------------------------
 def screen_suchen():
-    render_header("FUNDGRUBE KATHARINEUM", show_logo=True)
+    render_header("FUNDGRUBE KATHARINEUM")
     st.session_state.items_db = load_db()
 
     search_query = st.text_input("", placeholder="Suchen nach Gegenstand, Farbe, Ort...", key="search_bar_input")
@@ -379,9 +358,9 @@ def screen_suchen():
             if not images and item.get("image_b64"):
                 images = [item["image_b64"]]
                 
-            img_src = f"data:image/jpeg;base64,{images[0]}" if images else "https://via.placeholder.com/150"
+            img_src = f"data:image/jpeg;base64,{images[0]}" if images else "https://via.placeholder.com/200x260"
 
-            # HTML Rendering für absolut bündiges, sauberes Karten-Layout
+            # Clean Hochformat-Card Rendering
             st.markdown(
                 f"""
                 <div class='item-card'>
@@ -400,10 +379,10 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (KOMPAKTE BILDVORSCHAU)
+# 7. SCREEN 2: HINZUFÜGEN
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
-    render_header("HINZUFÜGEN", show_logo=False, show_back=True)
+    render_header("HINZUFÜGEN", show_back=True)
 
     st.markdown("### Bilder hochladen")
     files = st.file_uploader("Bilder aus Dateien hier hochladen", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
@@ -415,16 +394,14 @@ def screen_hinzufuegen():
     auto_cat, auto_col, auto_tags = "Sonstiges", "Unbekannt", ""
     
     if uploaded_imgs:
-        st.markdown("**Ausgewählte Bilder (Vorschau):**")
-        # Kompakte Thumbnails nebeneinander anzeigen
-        thumbs_html = "<div style='display:flex; flex-wrap:wrap; margin-bottom:15px;'>"
+        st.markdown("**Vorschau ausgewählte Bilder:**")
+        thumbs_html = "<div style='display:flex; flex-wrap:wrap; margin-bottom:12px;'>"
         for img in uploaded_imgs:
             b64 = images_to_base64_list([img])[0]
             thumbs_html += f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb'/>"
         thumbs_html += "</div>"
         st.markdown(thumbs_html, unsafe_allow_html=True)
         
-        # Nutzen das erste Bild für die KI
         auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[0])
 
     st.markdown("---")
@@ -466,7 +443,7 @@ def screen_hinzufuegen():
 # 8. SCREEN 3: VERMISST
 # -----------------------------------------------------------------------------
 def screen_vermisst():
-    render_header("VERMISST", show_logo=False, show_back=True)
+    render_header("VERMISST", show_back=True)
     st.session_state.items_db = load_db()
 
     st.markdown("### Foto deines verlorenen Gegenstands hochladen")
@@ -475,7 +452,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb' style='width:110px; height:110px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='upload-thumb' style='width:90px; height:90px;'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -496,14 +473,13 @@ def screen_vermisst():
 
     st.text_input("Titel hinzufügen")
     st.text_input("Tags hinzufügen")
-    
     st.toggle("Bei Match benachrichtigen", value=True)
 
 # -----------------------------------------------------------------------------
 # 9. SCREEN 4: DETAILANSICHT
 # -----------------------------------------------------------------------------
 def screen_detail():
-    render_header("FUNDSTÜCK", show_logo=False, show_back=True)
+    render_header("FUNDSTÜCK", show_back=True)
     st.session_state.items_db = load_db()
     item = next((i for i in st.session_state.items_db if i['id'] == st.session_state.selected_item_id), None)
 
@@ -539,14 +515,14 @@ def screen_detail():
 # 10. SCREEN 5: EINSTELLUNGEN
 # -----------------------------------------------------------------------------
 def screen_einstellungen():
-    render_header("EINSTELLUNGEN", show_logo=False, show_back=True)
+    render_header("EINSTELLUNGEN", show_back=True)
 
     settings_list = [
         ("🔔 Push-Benachrichtigungen & Match-Alerts", "Aktiviert"),
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v3.1.0 (Clean & Aligned)")
+        ("ℹ️ App-Version & Systeminfo", "v3.2.0 (Curved SVG & Portrait Grid)")
     ]
 
     for title, sub in settings_list:
