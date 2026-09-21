@@ -82,6 +82,19 @@ custom_css = """
         box-shadow: 0 4px 10px rgba(209, 29, 50, 0.22) !important;
     }
 
+    /* Unsichtbarer / Kleiner Klickbereich für Thumbnails */
+    div.element-container:has(#thumb_click_area) + div button {
+        height: 24px !important;
+        font-size: 10px !important;
+        padding: 0 !important;
+        margin-top: -8px !important;
+        margin-bottom: 12px !important;
+        background-color: transparent !important;
+        border: 1px solid #D11D32 !important;
+        color: #D11D32 !important;
+        border-radius: 6px !important;
+    }
+
     /* Input Felder */
     .stTextInput > div > div > input, .stSelectbox > div > div {
         border-radius: 12px !important;
@@ -141,7 +154,7 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* GANZ LINKSBÜNDIGES HAUPTBILD (Hochformat, kein Rand) */
+    /* GANZ LINKSBÜNDIGES HAUPTBILD */
     .clean-main-img-left {
         width: 100%;
         max-width: 340px;
@@ -154,27 +167,6 @@ custom_css = """
         padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
-    }
-
-    /* VORSCHAUBILD-BUTTONS (Rechts untereinander, bildfüllend) */
-    div.element-container:has(button.thumb-img-btn) button {
-        width: 80px !important;
-        height: 95px !important;
-        padding: 0 !important;
-        margin-bottom: 8px !important;
-        border: none !important;
-        border-radius: 8px !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-repeat: no-repeat !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
-        cursor: pointer !important;
-        transition: transform 0.15s ease, opacity 0.15s ease !important;
-    }
-
-    div.element-container:has(button.thumb-img-btn) button:hover {
-        transform: scale(1.05) !important;
-        opacity: 0.9 !important;
     }
 </style>
 """
@@ -399,7 +391,7 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (Ganz linksbündig & Klickbare Miniatur-Bilder)
+# 7. SCREEN 2: HINZUFÜGEN (Echte Miniatur-Bilder rechts mit Klick-Umschaltung)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -420,28 +412,24 @@ def screen_hinzufuegen():
             
         active_idx = st.session_state.selected_img_idx
 
-        # Spalten-Layout: 4 Teile Hauptbild (ganz links), 1 Teil Vorschaubilder (rechts)
+        # Spalten-Layout: 4 Teile Hauptbild (links), 1 Teil Miniaturansichten (rechts)
         col_main_img, col_side_thumbs = st.columns([4, 1])
         
         with col_main_img:
-            # Ganz linksbündiges Hauptbild im Hochformat ohne Rand
+            # Ganz linksbündiges Hauptbild
             st.markdown(
                 f"<div style='display:flex; justify-content:flex-start;'><img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img-left'/></div>", 
                 unsafe_allow_html=True
             )
 
         with col_side_thumbs:
-            # Alle hochgeladenen Bilder als klickbare Miniatur-Buttons rechts anzeigen
-            for idx, b64_thumb in enumerate(b64_list):
-                # Dynamisches CSS: Der Button IST das Bild selbst (ohne Schrift)
-                st.markdown(
-                    f"<style>div.element-container:has(#thumb_btn_{idx}) + div button {{ background-image: url('data:image/jpeg;base64,{b64_thumb}') !important; }}</style>",
-                    unsafe_allow_html=True
-                )
-                st.markdown(f"<span id='thumb_btn_{idx}'></span>", unsafe_allow_html=True)
+            # Rendert JEDES hochgeladene Bild als echtes kleines Miniaturbild mit Klick-Funktion
+            for idx, img_obj in enumerate(uploaded_imgs):
+                st.image(img_obj, width=85)
                 
-                # Der Button hat keinen Text (nur Leerzeichen), agiert als echtes klickbares Vorschaubild
-                if st.button(" ", key=f"btn_thumb_{idx}", type="secondary"):
+                # Dezent gestalteter Button direkt unter dem Miniaturbild ohne störenden Text
+                st.markdown("<span id='thumb_click_area'></span>", unsafe_allow_html=True)
+                if st.button("Auswählen", key=f"select_img_{idx}"):
                     st.session_state.selected_img_idx = idx
                     st.rerun()
 
@@ -566,7 +554,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v5.2.0 (Clean Final Release)")
+        ("ℹ️ App-Version & Systeminfo", "v5.3.0 (Clean Final Release)")
     ]
 
     for title, sub in settings_list:
