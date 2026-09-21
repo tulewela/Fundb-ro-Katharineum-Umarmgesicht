@@ -141,28 +141,31 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* GROSSES HAUPTBILD BEIM HOCHLADEN (3-4x größer) */
-    .main-upload-preview {
+    /* DOPPELT SO GROSSES HAUPTBILD BEIM HOCHLADEN (4:3 Format) */
+    .main-upload-preview-large {
         width: 100%;
-        max-width: 260px;
-        height: 240px;
+        height: 360px;
         object-fit: cover;
-        border-radius: 14px;
-        border: 2px solid #D11D32;
-        box-shadow: 0 4px 12px rgba(209, 29, 50, 0.12);
-        margin-bottom: 10px;
+        border-radius: 16px;
+        border: 2.5px solid #D11D32;
+        box-shadow: 0 6px 18px rgba(209, 29, 50, 0.15);
         display: block;
     }
 
-    /* KLEINERE ZUSÄTZLICHE THUMBNAILS DARUNTER */
-    .upload-thumb {
-        width: 70px;
-        height: 70px;
+    /* NEBENEINANDER AUFGESTELLTE INTERAKTIVE THUMBNAILS */
+    .side-thumb {
+        width: 100%;
+        height: 80px;
         object-fit: cover;
-        border-radius: 8px;
-        border: 1.5px solid #CCCCCC;
-        margin-right: 8px;
-        margin-bottom: 8px;
+        border-radius: 10px;
+        border: 1.5px solid #E0E0E0;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .side-thumb-active {
+        border: 2.5px solid #D11D32 !important;
+        box-shadow: 0 2px 8px rgba(209, 29, 50, 0.2);
     }
 </style>
 """
@@ -259,6 +262,9 @@ if "current_screen" not in st.session_state:
 
 if "selected_item_id" not in st.session_state:
     st.session_state.selected_item_id = None
+
+if "selected_img_idx" not in st.session_state:
+    st.session_state.selected_img_idx = 0
 
 st.session_state.items_db = load_db()
 
@@ -384,7 +390,7 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (PROMINENTES HAUPTBILD)
+# 7. SCREEN 2: HINZUFÜGEN (DYNAMISCHE INTERAKTIVE GALERIE)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -401,23 +407,38 @@ def screen_hinzufuegen():
     if uploaded_imgs:
         b64_list = images_to_base64_list(uploaded_imgs)
         
-        # Prominente Anzeige des Hauptbildes + kleine Thumbnails für weitere Bilder
-        preview_html = f"""
-        <div style='margin-bottom:15px;'>
-            <div style='font-size:0.85rem; font-weight:600; color:#555; margin-bottom:6px;'>Ausgewähltes Hauptbild:</div>
-            <img src='data:image/jpeg;base64,{b64_list[0]}' class='main-upload-preview'/>
-        """
-        
-        if len(b64_list) > 1:
-            preview_html += "<div style='font-size:0.85rem; font-weight:600; color:#555; margin-top:10px; margin-bottom:6px;'>Weitere hochgeladene Bilder:</div><div style='display:flex; flex-wrap:wrap;'>"
-            for b64_extra in b64_list[1:]:
-                preview_html += f"<img src='data:image/jpeg;base64,{b64_extra}' class='upload-thumb'/>"
-            preview_html += "</div>"
+        # Sicherheitsprüfungs-Index für Bildwechsel
+        if st.session_state.selected_img_idx >= len(b64_list):
+            st.session_state.selected_img_idx = 0
             
-        preview_html += "</div>"
-        st.markdown(preview_html, unsafe_allow_html=True)
+        active_idx = st.session_state.selected_img_idx
+
+        # ---------------------------------------------------------------------
+        # SKIZZEN-LAYOUT: Links großes Bild, rechts klickbare Vorschauen
+        # ---------------------------------------------------------------------
+        col_main_img, col_side_thumbs = st.columns([3, 1])
         
-        auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[0])
+        with col_main_img:
+            # Großes gewähltes Bild (4:3 Format, doppelt so groß wie zuvor)
+            st.markdown(
+                f"<img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='main-upload-preview-large'/>", 
+                unsafe_allow_html=True
+            )
+
+        with col_side_thumbs:
+            st.markdown("<small style='font-weight:600; color:#666;'>Bilder wählen:</small>", unsafe_allow_html=True)
+            for idx, b64_img in enumerate(b64_list):
+                is_active = "side-thumb-active" if idx == active_idx else ""
+                st.markdown(f"<img src='data:image/jpeg;base64,{b64_img}' class='side-thumb {is_active}'/>", unsafe_allow_html=True)
+                
+                # Interaktiver Button unter jedem Bild zum Auswählen
+                btn_label = "✓ Aktiv" if idx == active_idx else f"Bild {idx+1}"
+                if st.button(btn_label, key=f"select_img_btn_{idx}", use_container_width=True):
+                    st.session_state.selected_img_idx = idx
+                    st.rerun()
+
+        # KI-Erkennung basierend auf dem aktuell aktiv gewählten Bild
+        auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[active_idx])
 
     st.markdown("---")
     with st.form("form_add"):
@@ -451,6 +472,7 @@ def screen_hinzufuegen():
                 }
                 db.append(new_item)
                 save_db(db)
+                st.session_state.selected_img_idx = 0
                 st.session_state.current_screen = "Suchen"
                 st.rerun()
 
@@ -467,7 +489,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='main-upload-preview' style='max-width:200px; height:180px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='main-upload-preview-large' style='max-width:240px; height:200px;'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -537,7 +559,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v3.4.0 (Final Release)")
+        ("ℹ️ App-Version & Systeminfo", "v4.0.0 (Interactive Gallery Final)")
     ]
 
     for title, sub in settings_list:
