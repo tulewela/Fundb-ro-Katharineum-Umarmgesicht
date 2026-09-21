@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Erzeugung von sanft gebogenem, gut lesbarem Text + Logo darunter
+# Erzeugung von sanft gebogenem Text + Logo
 def generate_curved_header_svg(title_text: str) -> str:
     svg = f"""
     <svg width="420" height="135" viewBox="0 0 420 135" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
@@ -93,7 +93,7 @@ custom_css = """
         border-color: #D11D32 !important;
     }
 
-    /* BÜNDIGE BIBLIOTHEK-KARTEN */
+    /* BIBLIOTHEK-KARTEN */
     .item-card {
         background: #FFFFFF;
         border-radius: 16px;
@@ -141,31 +141,29 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* DOPPELT SO GROSSES HAUPTBILD BEIM HOCHLADEN (4:3 Format) */
-    .main-upload-preview-large {
+    /* CLEANES HAUPTBILD IM HOCHFORMAT (Kein Rand, Kein Balken, Links) */
+    .clean-main-img {
         width: 100%;
-        height: 360px;
-        object-fit: cover;
-        border-radius: 16px;
-        border: 2.5px solid #D11D32;
-        box-shadow: 0 6px 18px rgba(209, 29, 50, 0.15);
+        max-width: 340px;
+        max-height: 480px;
+        object-fit: contain;
+        border-radius: 8px;
         display: block;
+        margin: 0;
+        padding: 0;
+        border: none !important;
+        box-shadow: none !important;
     }
 
-    /* NEBENEINANDER AUFGESTELLTE INTERAKTIVE THUMBNAILS */
-    .side-thumb {
-        width: 100%;
-        height: 80px;
+    /* CLEANES VORSCHAUBILD RECHTS (Kein Rahmen) */
+    .clean-thumb-img {
+        width: 70px;
+        height: 90px;
         object-fit: cover;
-        border-radius: 10px;
-        border: 1.5px solid #E0E0E0;
-        margin-bottom: 4px;
+        border-radius: 6px;
         display: block;
-    }
-
-    .side-thumb-active {
-        border: 2.5px solid #D11D32 !important;
-        box-shadow: 0 2px 8px rgba(209, 29, 50, 0.2);
+        margin-bottom: 8px;
+        border: none !important;
     }
 </style>
 """
@@ -390,12 +388,11 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (DYNAMISCHE INTERAKTIVE GALERIE)
+# 7. SCREEN 2: HINZUFÜGEN (PURISTISCHE, CLEAN ANZEIGE IM HOCHFORMAT)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
 
-    st.markdown("### Bilder hochladen")
     files = st.file_uploader("Bilder aus Dateien hier hochladen", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
     
     uploaded_imgs = []
@@ -407,37 +404,30 @@ def screen_hinzufuegen():
     if uploaded_imgs:
         b64_list = images_to_base64_list(uploaded_imgs)
         
-        # Sicherheitsprüfungs-Index für Bildwechsel
         if st.session_state.selected_img_idx >= len(b64_list):
             st.session_state.selected_img_idx = 0
             
         active_idx = st.session_state.selected_img_idx
 
-        # ---------------------------------------------------------------------
-        # SKIZZEN-LAYOUT: Links großes Bild, rechts klickbare Vorschauen
-        # ---------------------------------------------------------------------
+        # Layout: Links grosses, nativ linksbündiges Bild (keine Ränder), rechts Thumbnails
         col_main_img, col_side_thumbs = st.columns([3, 1])
         
         with col_main_img:
-            # Großes gewähltes Bild (4:3 Format, doppelt so groß wie zuvor)
+            # Reines Bild im Hochformat ohne Rahmen, Balken oder Umrandungen
             st.markdown(
-                f"<img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='main-upload-preview-large'/>", 
+                f"<img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img'/>", 
                 unsafe_allow_html=True
             )
 
         with col_side_thumbs:
-            st.markdown("<small style='font-weight:600; color:#666;'>Bilder wählen:</small>", unsafe_allow_html=True)
+            # Bildelemente schlicht nebeneinander ohne Beschriftungstext
             for idx, b64_img in enumerate(b64_list):
-                is_active = "side-thumb-active" if idx == active_idx else ""
-                st.markdown(f"<img src='data:image/jpeg;base64,{b64_img}' class='side-thumb {is_active}'/>", unsafe_allow_html=True)
-                
-                # Interaktiver Button unter jedem Bild zum Auswählen
-                btn_label = "✓ Aktiv" if idx == active_idx else f"Bild {idx+1}"
-                if st.button(btn_label, key=f"select_img_btn_{idx}", use_container_width=True):
+                st.markdown(f"<img src='data:image/jpeg;base64,{b64_img}' class='clean-thumb-img'/>", unsafe_allow_html=True)
+                # Klick-Auswahl als dezenter, transparenter Button
+                if st.button(" 👁️ ", key=f"select_img_btn_{idx}"):
                     st.session_state.selected_img_idx = idx
                     st.rerun()
 
-        # KI-Erkennung basierend auf dem aktuell aktiv gewählten Bild
         auto_cat, auto_col, auto_tags = classify_and_generate_tags(uploaded_imgs[active_idx])
 
     st.markdown("---")
@@ -489,7 +479,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='main-upload-preview-large' style='max-width:240px; height:200px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='clean-main-img' style='max-width:220px;'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -559,7 +549,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v4.0.0 (Interactive Gallery Final)")
+        ("ℹ️ App-Version & Systeminfo", "v5.0.0 (Clean Final Release)")
     ]
 
     for title, sub in settings_list:
