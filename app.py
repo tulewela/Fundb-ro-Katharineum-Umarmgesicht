@@ -82,17 +82,21 @@ custom_css = """
         box-shadow: 0 4px 10px rgba(209, 29, 50, 0.22) !important;
     }
 
-    /* Unsichtbarer / Kleiner Klickbereich für Thumbnails */
-    div.element-container:has(#thumb_click_area) + div button {
-        height: 24px !important;
-        font-size: 10px !important;
+    /* VÖLLIG CLEANE THUMBNAIL-BUTTONS OHNE TEXT */
+    div.element-container:has(#clean_thumb_btn) + div button {
+        height: 22px !important;
+        font-size: 0px !important; /* blendet jeglichen Text aus */
         padding: 0 !important;
-        margin-top: -8px !important;
+        margin-top: -6px !important;
         margin-bottom: 12px !important;
-        background-color: transparent !important;
-        border: 1px solid #D11D32 !important;
-        color: #D11D32 !important;
+        background-color: #FAFAFA !important;
+        border: 1.5px solid #D11D32 !important;
         border-radius: 6px !important;
+        cursor: pointer !important;
+    }
+
+    div.element-container:has(#clean_thumb_btn) + div button:hover {
+        background-color: #D11D32 !important;
     }
 
     /* Input Felder */
@@ -154,19 +158,19 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* GANZ LINKSBÜNDIGES HAUPTBILD */
+    /* GANZ LINKSBÜNDIGES KOMPAKTES BILD (Hochformat 3:4 / 9:16) */
     .clean-main-img-left {
         width: 100%;
-        max-width: 340px;
-        max-height: 480px;
+        max-width: 320px;
+        max-height: 420px;
         object-fit: contain;
-        border-radius: 8px;
+        border-radius: 12px;
         display: block;
         margin-left: 0 !important;
         margin-right: auto !important;
         padding: 0 !important;
         border: none !important;
-        box-shadow: none !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
 </style>
 """
@@ -266,6 +270,9 @@ if "selected_item_id" not in st.session_state:
 
 if "selected_img_idx" not in st.session_state:
     st.session_state.selected_img_idx = 0
+
+if "detail_img_idx" not in st.session_state:
+    st.session_state.detail_img_idx = 0
 
 st.session_state.items_db = load_db()
 
@@ -387,11 +394,12 @@ def screen_suchen():
             )
             if st.button("Details anzeigen", key=f"btn_det_{item['id']}", use_container_width=True):
                 st.session_state.selected_item_id = item['id']
+                st.session_state.detail_img_idx = 0
                 st.session_state.current_screen = "Detail"
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (Echte Miniatur-Bilder rechts mit Klick-Umschaltung)
+# 7. SCREEN 2: HINZUFÜGEN
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -412,24 +420,19 @@ def screen_hinzufuegen():
             
         active_idx = st.session_state.selected_img_idx
 
-        # Spalten-Layout: 4 Teile Hauptbild (links), 1 Teil Miniaturansichten (rechts)
         col_main_img, col_side_thumbs = st.columns([4, 1])
         
         with col_main_img:
-            # Ganz linksbündiges Hauptbild
             st.markdown(
                 f"<div style='display:flex; justify-content:flex-start;'><img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img-left'/></div>", 
                 unsafe_allow_html=True
             )
 
         with col_side_thumbs:
-            # Rendert JEDES hochgeladene Bild als echtes kleines Miniaturbild mit Klick-Funktion
             for idx, img_obj in enumerate(uploaded_imgs):
-                st.image(img_obj, width=85)
-                
-                # Dezent gestalteter Button direkt unter dem Miniaturbild ohne störenden Text
-                st.markdown("<span id='thumb_click_area'></span>", unsafe_allow_html=True)
-                if st.button("Auswählen", key=f"select_img_{idx}"):
+                st.image(img_obj, width=80)
+                st.markdown("<span id='clean_thumb_btn'></span>", unsafe_allow_html=True)
+                if st.button(".", key=f"select_img_{idx}"):
                     st.session_state.selected_img_idx = idx
                     st.rerun()
 
@@ -484,7 +487,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='clean-main-img-left' style='max-width:220px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='clean-main-img-left'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -508,7 +511,7 @@ def screen_vermisst():
     st.toggle("Bei Match benachrichtigen", value=True)
 
 # -----------------------------------------------------------------------------
-# 9. SCREEN 4: DETAILANSICHT
+# 9. SCREEN 4: DETAILANSICHT (Kompakte & saubere Vorschau)
 # -----------------------------------------------------------------------------
 def screen_detail():
     render_header("FUNDSTÜCK", show_back=True)
@@ -519,17 +522,35 @@ def screen_detail():
         st.error("Gegenstand nicht gefunden.")
         return
 
-    st.markdown("### GALERIE")
     images = item.get("images_b64", [])
     if not images and item.get("image_b64"):
         images = [item["image_b64"]]
 
     if images:
-        cols = st.columns(min(len(images), 3))
-        for idx, b64_img in enumerate(images):
-            with cols[idx % 3]:
-                st.image(base64.b64decode(b64_img), use_container_width=True)
+        if st.session_state.detail_img_idx >= len(images):
+            st.session_state.detail_img_idx = 0
+            
+        active_idx = st.session_state.detail_img_idx
 
+        # Layout: Links kompaktes Hauptbild (max. 320px), rechts die Thumbnails
+        col_main, col_thumbs = st.columns([4, 1])
+        
+        with col_main:
+            st.markdown(
+                f"<div style='display:flex; justify-content:flex-start;'><img src='data:image/jpeg;base64,{images[active_idx]}' class='clean-main-img-left'/></div>", 
+                unsafe_allow_html=True
+            )
+
+        with col_thumbs:
+            if len(images) > 1:
+                for idx, b64_thumb in enumerate(images):
+                    st.image(base64.b64decode(b64_thumb), width=80)
+                    st.markdown("<span id='clean_thumb_btn'></span>", unsafe_allow_html=True)
+                    if st.button(".", key=f"det_thumb_{idx}"):
+                        st.session_state.detail_img_idx = idx
+                        st.rerun()
+
+    st.markdown("---")
     st.markdown(f"## {item['title']}")
     st.markdown(f"**🏷️ Tags:** {item['tags']}")
     st.markdown(f"**📍 Findungsort:** {item['location']}")
@@ -554,7 +575,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v5.3.0 (Clean Final Release)")
+        ("ℹ️ App-Version & Systeminfo", "v5.4.0 (Clean Compact Gallery)")
     ]
 
     for title, sub in settings_list:
