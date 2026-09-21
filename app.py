@@ -63,7 +63,7 @@ custom_css = """
         margin-bottom: 10px;
     }
 
-    /* Streamlit Buttons Standard */
+    /* Standard Buttons */
     div.stButton > button {
         border-radius: 12px !important;
         border: 2px solid #D11D32 !important;
@@ -141,7 +141,7 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* BÜNDIG AM LINKEN RAND (Großes Hauptbild) */
+    /* GANZ LINKSBÜNDIGES HAUPTBILD (Hochformat, kein Rand) */
     .clean-main-img-left {
         width: 100%;
         max-width: 340px;
@@ -156,15 +156,25 @@ custom_css = """
         box-shadow: none !important;
     }
 
-    /* VORSCHAUBILDER ALS CLICKABLE IMAGES (Styling) */
-    div[data-testid="stImage"] img {
+    /* VORSCHAUBILD-BUTTONS (Rechts untereinander, bildfüllend) */
+    div.element-container:has(button.thumb-img-btn) button {
+        width: 80px !important;
+        height: 95px !important;
+        padding: 0 !important;
+        margin-bottom: 8px !important;
+        border: none !important;
         border-radius: 8px !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
         cursor: pointer !important;
-        transition: opacity 0.2s ease !important;
+        transition: transform 0.15s ease, opacity 0.15s ease !important;
     }
 
-    div[data-testid="stImage"] img:hover {
-        opacity: 0.8 !important;
+    div.element-container:has(button.thumb-img-btn) button:hover {
+        transform: scale(1.05) !important;
+        opacity: 0.9 !important;
     }
 </style>
 """
@@ -389,7 +399,7 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (Ganz linksbündig & Klickbares Bild ohne Buttons)
+# 7. SCREEN 2: HINZUFÜGEN (Ganz linksbündig & Klickbare Miniatur-Bilder)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -410,21 +420,28 @@ def screen_hinzufuegen():
             
         active_idx = st.session_state.selected_img_idx
 
-        # Spalten-Layout: Hauptbild BÜNDIG links (4), Vorschaubilder (1)
+        # Spalten-Layout: 4 Teile Hauptbild (ganz links), 1 Teil Vorschaubilder (rechts)
         col_main_img, col_side_thumbs = st.columns([4, 1])
         
         with col_main_img:
-            # Ganz linksbündiges Bild ohne Rand/Balken
+            # Ganz linksbündiges Hauptbild im Hochformat ohne Rand
             st.markdown(
                 f"<div style='display:flex; justify-content:flex-start;'><img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img-left'/></div>", 
                 unsafe_allow_html=True
             )
 
         with col_side_thumbs:
-            # Vorschaubilder sind direkt anklickbar (ohne extra Button / Auge / Text)
-            for idx, pil_thumb in enumerate(uploaded_imgs):
-                # Direkter Bild-Klick über st.image
-                if st.image(pil_thumb, width=80):
+            # Alle hochgeladenen Bilder als klickbare Miniatur-Buttons rechts anzeigen
+            for idx, b64_thumb in enumerate(b64_list):
+                # Dynamisches CSS: Der Button IST das Bild selbst (ohne Schrift)
+                st.markdown(
+                    f"<style>div.element-container:has(#thumb_btn_{idx}) + div button {{ background-image: url('data:image/jpeg;base64,{b64_thumb}') !important; }}</style>",
+                    unsafe_allow_html=True
+                )
+                st.markdown(f"<span id='thumb_btn_{idx}'></span>", unsafe_allow_html=True)
+                
+                # Der Button hat keinen Text (nur Leerzeichen), agiert als echtes klickbares Vorschaubild
+                if st.button(" ", key=f"btn_thumb_{idx}", type="secondary"):
                     st.session_state.selected_img_idx = idx
                     st.rerun()
 
@@ -549,7 +566,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v5.1.0 (Clean Final Release)")
+        ("ℹ️ App-Version & Systeminfo", "v5.2.0 (Clean Final Release)")
     ]
 
     for title, sub in settings_list:
