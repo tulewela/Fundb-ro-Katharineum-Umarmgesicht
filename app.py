@@ -63,7 +63,7 @@ custom_css = """
         margin-bottom: 10px;
     }
 
-    /* Streamlit Buttons */
+    /* Streamlit Buttons Standard */
     div.stButton > button {
         border-radius: 12px !important;
         border: 2px solid #D11D32 !important;
@@ -141,29 +141,30 @@ custom_css = """
         margin-top: 2px;
     }
 
-    /* CLEANES HAUPTBILD IM HOCHFORMAT (Kein Rand, Kein Balken, Links) */
-    .clean-main-img {
+    /* BÜNDIG AM LINKEN RAND (Großes Hauptbild) */
+    .clean-main-img-left {
         width: 100%;
         max-width: 340px;
         max-height: 480px;
         object-fit: contain;
         border-radius: 8px;
         display: block;
-        margin: 0;
-        padding: 0;
+        margin-left: 0 !important;
+        margin-right: auto !important;
+        padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
     }
 
-    /* CLEANES VORSCHAUBILD RECHTS (Kein Rahmen) */
-    .clean-thumb-img {
-        width: 70px;
-        height: 90px;
-        object-fit: cover;
-        border-radius: 6px;
-        display: block;
-        margin-bottom: 8px;
-        border: none !important;
+    /* VORSCHAUBILDER ALS CLICKABLE IMAGES (Styling) */
+    div[data-testid="stImage"] img {
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: opacity 0.2s ease !important;
+    }
+
+    div[data-testid="stImage"] img:hover {
+        opacity: 0.8 !important;
     }
 </style>
 """
@@ -388,7 +389,7 @@ def screen_suchen():
                 st.rerun()
 
 # -----------------------------------------------------------------------------
-# 7. SCREEN 2: HINZUFÜGEN (PURISTISCHE, CLEAN ANZEIGE IM HOCHFORMAT)
+# 7. SCREEN 2: HINZUFÜGEN (Ganz linksbündig & Klickbares Bild ohne Buttons)
 # -----------------------------------------------------------------------------
 def screen_hinzufuegen():
     render_header("HINZUFÜGEN", show_back=True)
@@ -409,22 +410,21 @@ def screen_hinzufuegen():
             
         active_idx = st.session_state.selected_img_idx
 
-        # Layout: Links grosses, nativ linksbündiges Bild (keine Ränder), rechts Thumbnails
-        col_main_img, col_side_thumbs = st.columns([3, 1])
+        # Spalten-Layout: Hauptbild BÜNDIG links (4), Vorschaubilder (1)
+        col_main_img, col_side_thumbs = st.columns([4, 1])
         
         with col_main_img:
-            # Reines Bild im Hochformat ohne Rahmen, Balken oder Umrandungen
+            # Ganz linksbündiges Bild ohne Rand/Balken
             st.markdown(
-                f"<img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img'/>", 
+                f"<div style='display:flex; justify-content:flex-start;'><img src='data:image/jpeg;base64,{b64_list[active_idx]}' class='clean-main-img-left'/></div>", 
                 unsafe_allow_html=True
             )
 
         with col_side_thumbs:
-            # Bildelemente schlicht nebeneinander ohne Beschriftungstext
-            for idx, b64_img in enumerate(b64_list):
-                st.markdown(f"<img src='data:image/jpeg;base64,{b64_img}' class='clean-thumb-img'/>", unsafe_allow_html=True)
-                # Klick-Auswahl als dezenter, transparenter Button
-                if st.button(" 👁️ ", key=f"select_img_btn_{idx}"):
+            # Vorschaubilder sind direkt anklickbar (ohne extra Button / Auge / Text)
+            for idx, pil_thumb in enumerate(uploaded_imgs):
+                # Direkter Bild-Klick über st.image
+                if st.image(pil_thumb, width=80):
                     st.session_state.selected_img_idx = idx
                     st.rerun()
 
@@ -479,7 +479,7 @@ def screen_vermisst():
     if f:
         img = Image.open(f)
         b64 = images_to_base64_list([img])[0]
-        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='clean-main-img' style='max-width:220px;'/>", unsafe_allow_html=True)
+        st.markdown(f"<img src='data:image/jpeg;base64,{b64}' class='clean-main-img-left' style='max-width:220px;'/>", unsafe_allow_html=True)
         
         cat, col, tags = classify_and_generate_tags(img)
 
@@ -549,7 +549,7 @@ def screen_einstellungen():
         ("👤 Mein Profil & Kontaktdaten", "Klasse 9b"),
         ("🏫 Schulstandort", "Katharineum zu Lübeck"),
         ("🔒 Datenschutz & Nutzungsbedingungen", "Eingesehen"),
-        ("ℹ️ App-Version & Systeminfo", "v5.0.0 (Clean Final Release)")
+        ("ℹ️ App-Version & Systeminfo", "v5.1.0 (Clean Final Release)")
     ]
 
     for title, sub in settings_list:
